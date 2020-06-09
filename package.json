@@ -1,0 +1,18 @@
+{
+  "name": "ytdl_page_app",
+  "version": "1.0.0",
+  "description": "Node.js on Docker",
+  "author": "antfurn",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "chmodr": "^1.2.0",
+    "express": "^4.16.1",
+    "express-validator": "^6.5.0",
+    "lokijs": "^1.5.8",
+    "stringify-object": "^3.3.0",
+    "youtube-dl": "^3.0.2"
+  }
+}
