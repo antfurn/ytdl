@@ -80,11 +80,15 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<html>';
   txthtml += '<head> <meta http-equiv="refresh" content="2"> </head>';
   txthtml += '<body>This page auto refresh every 2 seconds<br />';
+  txthtml += '<br /><a href="/ytdl">Back to form...</a>';
+  txthtml += '<br />';
+  txthtml += '<br /><a href="/ytdl/history">Download History...</a>';
+  txthtml += '<br />';
   txthtml += '<table border="1"><tr>';
   txthtml += '<th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th>';
   txthtml += '</tr><tr>';
 
-  let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete'] }});
+  let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete','failed'] }});
   if ( inprogressdls === null | inprogressdls.length === 0 ){
     rowhtml = "<td>All done :-)</td>"
   } else {
@@ -113,22 +117,26 @@ app.get('/ytdl/history', (req, res) => {
 
   let txthtml = "";
   let rowhtml = "";
+  let frowhtml = "";
   txthtml += '<html>';
   txthtml += '<head></head>';
   txthtml += '<body>';
+  txthtml += '<br /><a href="/ytdl">Back to form...</a>';
+  txthtml += '<br />';
+  txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
   txthtml += '<table border="1"><tr>';
   txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
   txthtml += '</tr><tr>';
 
-  let inprogressdls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }});
-  if ( inprogressdls === null | inprogressdls.length === 0 ){
+  let completedls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }});
+  if ( completedls === null | completedls.length === 0 ){
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
-    for ( var i in inprogressdls ) {
-      rowhtml += "<td>"+ inprogressdls[i].uploader +"</td>"
-      rowhtml += "<td>"+ inprogressdls[i].title +"</td>"
-      rowhtml += "<td>"+ inprogressdls[i].filename +"</td>"
-      rowhtml += "<td>"+ ((inprogressdls[i].v_size+inprogressdls[i].a_size)/(1024*1024)).toFixed(2) +"MB</td>"
+    for ( var i in completedls ) {
+      rowhtml += "<td>"+ completedls[i].uploader +"</td>"
+      rowhtml += "<td>"+ completedls[i].title +"</td>"
+      rowhtml += "<td>"+ completedls[i].filename +"</td>"
+      rowhtml += "<td>"+ ((completedls[i].v_size+completedls[i].a_size)/(1024*1024)).toFixed(2) +"MB</td>"
       //rowhtml += "<td>"+ inprogressdls[i].m_status +"</td>"
       rowhtml += "</tr><tr>";
     }
@@ -140,6 +148,27 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+  txthtml += '<br />';
+  txthtml += '<br />';
+  txthtml += '<br />The blow donwnloads failed :(';
+  txthtml += '<table border="1"><tr>';
+  txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Status</th>';
+  txthtml += '</tr><tr>';
+  
+  let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }});
+  if ( faileddls === null | faileddls.length === 0 ){
+    rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
+  } else {
+    for ( var i in faileddls ) {
+      frowhtml += "<td>"+ faileddls[i].uploader +"</td>"
+      frowhtml += "<td>"+ faileddls[i].title +"</td>"
+      frowhtml += "<td>"+ faileddls[i].filename +"</td>"
+      frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
+      frowhtml += "</tr><tr>";
+    }
+  }
+  txthtml += frowhtml;
+  txthtml += '</tr></table>';
   txthtml += '</body></html>';
 
   res.send(txthtml);
@@ -332,21 +361,28 @@ app.post('/ytdl', [
 
         console.log('\nStart merge');
         youtubedl.exec(req.body.video_url, options, {}, function(err, output) {
-          if (err) throw err
-          //res.send("Finished download ");
-          console.log(output.join('\n')+"\n Download Complete!");
-          let vidd = dlsDB.get(db_doc_id);
-          vidd.m_status = "complete";          
-          inMemDB.saveDatabase(); // Force a DB save
+          if (err) {
+            console.log(output.join('\n') + "\n Merged Failed !!!");
+            let vidd = dlsDB.get(db_doc_id);
+            vidd.m_status = "failed";
+            inMemDB.saveDatabase(); // Force a DB save
 
-          // Sort out permissions
-          var chmodr = require('chmodr');
-          console.log('chmod-ing folder: ' + uploader_folder);
-          chmodr(uploader_folder, 0o775, function (err) {
-            if (err) { throw err; }          
-            console.log("\n Fixed Permissions");
-          }); 
+            throw err
+          } else {
+            //res.send("Finished download ");
+            console.log(output.join('\n') + "\n Download Complete!");
+            let vidd = dlsDB.get(db_doc_id);
+            vidd.m_status = "complete";
+            inMemDB.saveDatabase(); // Force a DB save
 
+            // Sort out permissions
+            var chmodr = require('chmodr');
+            console.log('chmod-ing folder: ' + uploader_folder);
+            chmodr(uploader_folder, 0o775, function (err) {
+              if (err) { throw err; }
+              console.log("\n Fixed Permissions");
+            }); 
+          }
         });
         
       });
