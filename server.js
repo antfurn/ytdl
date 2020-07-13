@@ -88,7 +88,7 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th>';
   txthtml += '</tr><tr>';
 
-  let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete','failed'] }});
+  let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete','failed'] }}).reverse();
   if ( inprogressdls === null | inprogressdls.length === 0 ){
     rowhtml = "<td>All done :-)</td>"
   } else {
@@ -128,10 +128,11 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
   txthtml += '</tr><tr>';
 
-  let completedls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }});
+  let completedls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }}).reverse();
   if ( completedls === null | completedls.length === 0 ){
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
+    completedls.solokijs 
     for ( var i in completedls ) {
       rowhtml += "<td>"+ completedls[i].uploader +"</td>"
       rowhtml += "<td>"+ completedls[i].title +"</td>"
@@ -150,12 +151,12 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
   txthtml += '<br />';
   txthtml += '<br />';
-  txthtml += '<br />The blow donwnloads failed :(';
+  txthtml += '<br />The below downloads failed :\'(';
   txthtml += '<table border="1"><tr>';
   txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Status</th>';
   txthtml += '</tr><tr>';
   
-  let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }});
+  let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }}).reverse();
   if ( faileddls === null | faileddls.length === 0 ){
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
@@ -165,6 +166,8 @@ app.get('/ytdl/history', (req, res) => {
       frowhtml += "<td>"+ faileddls[i].filename +"</td>"
       frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
       frowhtml += "</tr><tr>";
+      frowhtml += "<td colspan=4>"+ faileddls[i].failed_msg +"</td>"
+      frowhtml += "</td></tr><tr>";
     }
   }
   txthtml += frowhtml;
@@ -297,18 +300,36 @@ app.post('/ytdl', [
       // `size` should not be 0 here.
       if (vsize) {
         var percent = ((vpos / vsize) * 100).toFixed(2);
-        console.log('%'+percent);
         let vidd = dlsDB.get(db_doc_id);
+        if ( Math.floor(percent/10.0)-Math.floor(vidd.v_percent/10.0) > 0 ) console.log(' '+percent+'%');
         vidd.v_status = "downloading";
         vidd.v_percent = percent;
         vidd.v_pos = vpos;
       }
     });
+
+    video.on('error', (e) => {
+      let vidd = dlsDB.get(db_doc_id);
+      vidd.v_status = "error";
+      vidd.failed_msg = e;
+      vidd.m_status = "failed";
+
+      console.log('\nVideo Failed with error: ',e);
+    })
     
     video.on('end', function end () {
       'use strict'
-      console.log('\nVideo Done');
       let vidd = dlsDB.get(db_doc_id);
+      // Make sure it go to 100%
+      if (vidd.v_percent < 100.0) {
+        vidd.v_status = "too_short";
+        vidd.m_status = "failed";
+        vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
+        console.log('\nVideo only download: ' + vidd.v_percent + '%');
+        return;
+      }
+      // else
+      console.log('\nVideo Done');
       vidd.v_status = "complete";
         
       console.log('\nStart Audio');
@@ -335,6 +356,15 @@ app.post('/ytdl', [
         //var file = path.join(__dirname, info._filename)
         audio.pipe(fs.createWriteStream(ainfo._filename));
       });
+
+      audio.on('error', (e) => {
+        let vidd = dlsDB.get(db_doc_id);
+        vidd.a_status = "error";
+        vidd.failed_msg = e;
+        vidd.m_status = "failed";
+  
+        console.log('\nAudio Failed with error: ',e);
+      })
       
       var apos = 0
       audio.on('data', function data (achunk) {
@@ -344,8 +374,8 @@ app.post('/ytdl', [
         // `size` should not be 0 here.
         if (asize) {
           var percent = ((apos / asize) * 100).toFixed(2);
-          console.log('%'+percent);
           let vidd = dlsDB.get(db_doc_id);
+          if ( Math.floor(percent/10.0)-Math.floor(vidd.a_percent/10.0) > 0 ) console.log(' '+percent+'%');
           vidd.a_status = "downloading";
           vidd.a_percent = percent;
           vidd.a_pos = apos;
@@ -354,8 +384,17 @@ app.post('/ytdl', [
       
       audio.on('end', function end () {
         'use strict'
-        console.log('\nAudio Done');
         let vidd = dlsDB.get(db_doc_id);
+        // Make sure it go to 100%
+        if (vidd.a_percent < 100.0) {
+          vidd.a_status = "too_short";
+          vidd.m_status = "failed";
+          vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
+          console.log('\Audio only download: ' + vidd.a_percent + '%');
+          return;
+        }
+        // else
+        console.log('\nAudio Done');
         vidd.a_status = "complete";
         vidd.m_status = "started";
 
@@ -365,6 +404,7 @@ app.post('/ytdl', [
             console.log(output.join('\n') + "\n Merged Failed !!!");
             let vidd = dlsDB.get(db_doc_id);
             vidd.m_status = "failed";
+            vidd.failed_msg = err;
             inMemDB.saveDatabase(); // Force a DB save
 
             throw err
