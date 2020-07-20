@@ -10,9 +10,11 @@ rem Docker: build ytdl container
 echo Doing:: docker build
 docker build -t antfurn/ytdl-page-app .
 
-rem Docker: build ytdl container
-echo Doing:: remove old container
+rem Docker: stop/remove old container
+echo Doing:: stop/remove old container
 docker ps -a
+docker stop ytdlpage
+docker rm ytdlpage
 
 rem Docker: start ytdl container
 echo Doing:: docker run
