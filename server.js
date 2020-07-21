@@ -153,7 +153,7 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br />';
   txthtml += '<br />The below downloads failed :\'(';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Status</th>';
+  txthtml += '<th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th>';
   txthtml += '</tr><tr>';
   
   let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }}).reverse();
@@ -163,7 +163,7 @@ app.get('/ytdl/history', (req, res) => {
     for ( var i in faileddls ) {
       frowhtml += "<td>"+ faileddls[i].uploader +"</td>"
       frowhtml += "<td>"+ faileddls[i].title +"</td>"
-      frowhtml += "<td>"+ faileddls[i].filename +"</td>"
+      frowhtml += "<td>"+ faileddls[i].req_url +"</td>"
       frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
       frowhtml += "</tr><tr>";
       frowhtml += "<td colspan=4>"+ faileddls[i].failed_msg +"</td>"
@@ -230,6 +230,18 @@ app.post('/ytdl', [
     const aoptions = ['-o','ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames','-f','bestaudio'];
     //, '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]'];//, '-f bestvideo+bestaudio']; //'--username=user', '--password=hunter2'
 
+    let vidd = {};
+    vidd.req_url = req.body.video_url;
+    vidd.v_pos = 0;
+    vidd.v_percent = 0;
+    vidd.v_status = "waiting";
+    vidd.a_size = -1;
+    vidd.a_pos = 0;
+    vidd.a_percent = 0;
+    vidd.a_status = "waiting";
+    vidd.m_status = "waiting";
+    var db_doc_id = dlsDB.insert( vidd ).$loki;
+
     var video = youtubedl(
       req.body.video_url,
       // Optional arguments passed to youtube-dl.
@@ -237,7 +249,6 @@ app.post('/ytdl', [
     );
     
     var vsize = 0
-    var db_doc_id = null
     var uploader_folder = ""
     video.on('info', function (vinfo) {
       'use strict'
@@ -251,8 +262,9 @@ app.post('/ytdl', [
         fs.mkdirSync(uploader_folder);
       }
     
+      console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
       // Create json obj of the video meta data we want
-      let vidd = {};
+      let vidd = dlsDB.get(db_doc_id);
       vidd.vid_id = vinfo.id;
       vidd.title = vinfo.title;
       vidd.uploader = vinfo.uploader;
@@ -262,17 +274,7 @@ app.post('/ytdl', [
       vidd.filename = path_split[2];
       vidd.v_format_id = vinfo.format_id;
       vidd.v_size = vinfo.size;
-      vidd.v_pos = 0;
-      vidd.v_percent = 0;
-      vidd.v_status = "starting";
-      vidd.a_size = -1;
-      vidd.a_pos = 0;
-      vidd.a_percent = 0;
-      vidd.a_status = "waiting";
-      vidd.m_status = "waiting";
 
-      console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
-      db_doc_id = dlsDB.insert( vidd ).$loki;
       
       //var file = path.join(__dirname, info._filename)
       video.pipe(fs.createWriteStream(vinfo._filename));
@@ -325,7 +327,26 @@ app.post('/ytdl', [
         vidd.v_status = "too_short";
         vidd.m_status = "failed";
         vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
-        console.log('\nVideo only download: ' + vidd.v_percent + '%');
+        console.log('\nError: Video only download: ' + vidd.v_percent + '%');
+
+        if ( vidd.v_percent < 1 ){
+          console.log('Trying alternate method:');
+          //Rename part file:
+          fs.rename(vidd._filename,''+vidd._filename+'.broken-'+vidd.v_percent, function() {
+  
+            youtubedl.exec(vidd.req_url, ['-f bestvideo+bestaudio'], { cwd: uploader_folder }, function(err, output) {
+              if (err) throw err
+              
+              let vidd = dlsDB.get(db_doc_id);
+              vidd.v_status = "complete";
+              vidd.a_status = "complete";
+              vidd.m_status = "complete";
+              vidd.failed_msg = 'Had to use the direct download option.';
+            
+              console.log(output.join('\n'))
+            })
+          });
+        }
         return;
       }
       // else
