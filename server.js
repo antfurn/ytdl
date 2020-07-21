@@ -329,29 +329,43 @@ app.post('/ytdl', [
         vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
         console.log('\nError: Video only download: ' + vidd.v_percent + '%');
 
-        if ( vidd.v_percent < 1 ){
-          console.log('Trying alternate method:');
-          vidd.v_status = "started";
-          vidd.a_status = "started";
-          vidd.v_percent = "direct method";
-          vidd.a_percent = "progess not reported";
-          vidd.m_status = "waiting";
-          //Rename part file:
-          fs.rename(vidd._filename,''+vidd._filename+'.broken-'+vidd.v_percent, function() {
-  
-            youtubedl.exec(vidd.req_url, ['-f bestvideo+bestaudio'], { cwd: uploader_folder }, function(err, output) {
-              if (err) throw err
-              
+        fs.rename(vidd._filename, '' + vidd._filename + '.broken', function () {
+          if (vidd.v_percent < 1) {
+            console.log('Trying alternate method:');
+            vidd.v_status = "started";
+            vidd.a_status = "started";
+            vidd.v_percent = "direct method";
+            vidd.a_percent = "progess not reported";
+            vidd.m_status = "waiting";
+            //Rename part file:
+
+            youtubedl.exec(vidd.req_url, ['-f bestvideo+bestaudio'], { cwd: uploader_folder }, function (err, output) {
               let vidd = dlsDB.get(db_doc_id);
+              if (err) {
+                vidd.v_status = "failed";
+                vidd.a_status = "failed";
+                vidd.m_status = "failed";
+                vidd.failed_msg = 'Errr, Direct download also failed:\n' + err + '\n\n' + output.join('\n');
+                //throw err
+              }
+              console.log(output.join('\n'))
+
               vidd.v_status = "complete";
               vidd.a_status = "complete";
               vidd.m_status = "complete";
-              vidd.failed_msg = 'Had to use the direct download option.';
-            
-              console.log(output.join('\n'))
+              vidd.failed_msg = 'Had to use the direct download option.';            
+              inMemDB.saveDatabase(); // Force a DB save
+
+              // Sort out permissions
+              var chmodr = require('chmodr');
+              console.log('chmod-ing folder: ' + uploader_folder);
+              chmodr(uploader_folder, 0o775, function (err) {
+                if (err) { throw err; }
+                console.log("\n Fixed Permissions");
+              }); 
             })
-          });
-        }
+          }
+        });
         return;
       }
       // else
