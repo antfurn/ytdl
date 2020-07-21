@@ -331,8 +331,10 @@ app.post('/ytdl', [
 
         if ( vidd.v_percent < 1 ){
           console.log('Trying alternate method:');
-          vidd.v_status = "direct method";
-          vidd.a_status = "progess not reported";
+          vidd.v_status = "started";
+          vidd.a_status = "started";
+          vidd.v_percent = "direct method";
+          vidd.a_percent = "progess not reported";
           vidd.m_status = "waiting";
           //Rename part file:
           fs.rename(vidd._filename,''+vidd._filename+'.broken-'+vidd.v_percent, function() {
