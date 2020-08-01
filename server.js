@@ -140,7 +140,7 @@ app.get('/ytdl/history', (req, res) => {
     completedls.solokijs 
     for ( var i in completedls ) {
       if ( completedls[i].epoc.end ) {
-        rowhtml += "<td>"+ Date(completedls[i].epoc.end).toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
+        rowhtml += "<td>"+ completedls[i].epoc.end +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
       }
@@ -172,7 +172,7 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     for ( var i in faileddls ) {
       if ( completedls[i].epoc.requested ) {
-        rowhtml += "<td>"+ Date(faileddls[i].epoc.requested).toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
+        rowhtml += "<td>"+ faileddls[i].epoc.requested +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
       }
