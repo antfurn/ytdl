@@ -139,8 +139,8 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     completedls.solokijs 
     for ( var i in completedls ) {
-      if ( completedls[i].epoc.end ) {
-        rowhtml += "<td>"+ completedls[i].epoc.end +"</td>"
+      if ( typeof completedls[i].epoc.end !== 'undefined' && completedls[i].epoc.end ) {
+        rowhtml += "<td>"+ completedls[i].epoc.end.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
       }
@@ -171,8 +171,8 @@ app.get('/ytdl/history', (req, res) => {
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
     for ( var i in faileddls ) {
-      if ( completedls[i].epoc.requested ) {
-        rowhtml += "<td>"+ faileddls[i].epoc.requested +"</td>"
+      if ( typeof completedls[i].epoc.requested !== 'undefined' && completedls[i].epoc.requested ) {
+        rowhtml += "<td>"+ faileddls[i].epoc.requested.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
       }
