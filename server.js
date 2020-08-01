@@ -100,7 +100,7 @@ app.get('/ytdl/status', (req, res) => {
       rowhtml += "<td>"+ inprogressdls[i].title +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].v_percent +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].a_percent +"</td>"
-      rowhtml += "<td>"+ Math.floor((timeIs - inprogressdls[i].epoc.requested) / 1000) +"</td>"
+      rowhtml += "<td>"+ Math.floor((timeIs.epoc - inprogressdls[i].epoc.start.epoc) / 1000) +"</td>"
       //rowhtml += "<td>"+ inprogressdls[i].m_status +"</td>"
       rowhtml += "</tr><tr>";
     }
@@ -162,7 +162,7 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br />';
   txthtml += '<br />The below downloads failed :\'(';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th><th>id</th>';
+  txthtml += '<th>When:</th><th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th><th>id</th>';
   txthtml += '</tr><tr>';
   
   let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }}).reverse();
@@ -170,13 +170,18 @@ app.get('/ytdl/history', (req, res) => {
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
     for ( var i in faileddls ) {
+      if ( completedls[i].epoc ) {
+        rowhtml += "<td>"+ faileddls[i].epoc.requested.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
+      } else {
+        rowhtml += "<td>n/a</td>"
+      }
       frowhtml += "<td>"+ faileddls[i].uploader +"</td>"
       frowhtml += "<td>"+ faileddls[i].title +"</td>"
       frowhtml += "<td>"+ faileddls[i].req_url +"</td>"
       frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
       frowhtml += "<td>"+ faileddls[i].$loki +"</td>"
       frowhtml += "</tr><tr>";
-      frowhtml += "<td colspan=5>"+ JSON.stringify(faileddls[i].failed_msg, null, 2) +"</td>"
+      frowhtml += "<td colspan=6>"+ JSON.stringify(faileddls[i].failed_msg, null, 2) +"</td>"
       frowhtml += "</td></tr><tr>";
     }
   }
@@ -361,6 +366,7 @@ app.post('/ytdl', [
       vidd.v_status = "error";
       vidd.failed_msg = e;
       vidd.m_status = "failed";
+      vidd.epoc.end = new Date();
 
       console.log('\nVideo Failed with error: ',e);
     })
@@ -372,6 +378,7 @@ app.post('/ytdl', [
       if (vidd.v_percent < 100.0) {
         vidd.v_status = "too_short";
         vidd.m_status = "failed";
+        vidd.epoc.end = new Date();
         vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
         console.log('\nError: Video only download: ' + vidd.v_percent + '%');
 
@@ -391,6 +398,7 @@ app.post('/ytdl', [
                 vidd.v_status = "failed";
                 vidd.a_status = "failed";
                 vidd.m_status = "failed";
+                vidd.epoc.end = new Date();
                 vidd.failed_msg = 'Errr, Direct download also failed:\n' + err + '\n\n' + output.join('\n');
                 //throw err
               }
@@ -399,6 +407,7 @@ app.post('/ytdl', [
               vidd.v_status = "complete";
               vidd.a_status = "complete";
               vidd.m_status = "complete";
+              vidd.epoc.end = new Date();
               vidd.failed_msg = 'Had to use the direct download option.';            
               inMemDB.saveDatabase(); // Force a DB save
 
@@ -448,6 +457,7 @@ app.post('/ytdl', [
         vidd.a_status = "error";
         vidd.failed_msg = e;
         vidd.m_status = "failed";
+        vidd.epoc.end = new Date();
   
         console.log('\nAudio Failed with error: ',e);
       })
@@ -475,6 +485,7 @@ app.post('/ytdl', [
         if (vidd.a_percent < 100.0) {
           vidd.a_status = "too_short";
           vidd.m_status = "failed";
+          vidd.epoc.end = new Date();
           vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
           console.log('\Audio only download: ' + vidd.a_percent + '%');
           return;
@@ -490,6 +501,7 @@ app.post('/ytdl', [
             console.log(output.join('\n') + "\n Merged Failed !!!");
             let vidd = dlsDB.get(db_doc_id);
             vidd.m_status = "failed";
+            vidd.epoc.end = new Date();
             vidd.failed_msg = err;
             inMemDB.saveDatabase(); // Force a DB save
 
