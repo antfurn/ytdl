@@ -80,8 +80,9 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<html>';
   txthtml += '<head> <meta http-equiv="refresh" content="2"> </head>';
   txthtml += '<body>This page auto refresh every 2 seconds<br />';
-  let timeIs = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
-  txthtml += 'UTC: ' + timeIs;
+  let timeIs = new Date();
+  let dspTime = timeIs.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+  txthtml += 'UTC: ' + dspTime;
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/history">Download History...</a>';
