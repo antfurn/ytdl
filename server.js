@@ -80,7 +80,7 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<html>';
   txthtml += '<head> <meta http-equiv="refresh" content="2"> </head>';
   txthtml += '<body>This page auto refresh every 2 seconds<br />';
-  let timeIs = new Date.now();
+  let timeIs = Date.now();
   let dspTime = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
   txthtml += 'UTC: ' + dspTime;
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
@@ -284,7 +284,7 @@ app.post('/ytdl', [
     let vidd = {};
     vidd.req_url = req.body.video_url;
     vidd.epoch = {};
-    vidd.epoch.requested = new Date.now();
+    vidd.epoch.requested = Date.now();
     vidd.v_pos = 0;
     vidd.v_percent = 0;
     vidd.v_status = "waiting";
@@ -318,7 +318,7 @@ app.post('/ytdl', [
       console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
       // Create json obj of the video meta data we want
       let vidd = dlsDB.get(db_doc_id);
-      vidd.epoch.start = new Date.now();
+      vidd.epoch.start = Date.now();
       vidd.vid_id = vinfo.id;
       vidd.title = vinfo.title;
       vidd.uploader = vinfo.uploader;
@@ -369,7 +369,7 @@ app.post('/ytdl', [
       vidd.v_status = "error";
       vidd.failed_msg = e;
       vidd.m_status = "failed";
-      vidd.epoch.end = new Date.now();
+      vidd.epoch.end = Date.now();
 
       console.log('\nVideo Failed with error: ',e);
     })
@@ -381,7 +381,7 @@ app.post('/ytdl', [
       if (vidd.v_percent < 100.0) {
         vidd.v_status = "too_short";
         vidd.m_status = "failed";
-        vidd.epoch.end = new Date.now();
+        vidd.epoch.end = Date.now();
         vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
         console.log('\nError: Video only download: ' + vidd.v_percent + '%');
 
@@ -401,7 +401,7 @@ app.post('/ytdl', [
                 vidd.v_status = "failed";
                 vidd.a_status = "failed";
                 vidd.m_status = "failed";
-                vidd.epoch.end = new Date.now();
+                vidd.epoch.end = Date.now();
                 vidd.failed_msg = 'Errr, Direct download also failed:\n' + err + '\n\n' + output.join('\n');
                 //throw err
               }
@@ -410,7 +410,7 @@ app.post('/ytdl', [
               vidd.v_status = "complete";
               vidd.a_status = "complete";
               vidd.m_status = "complete";
-              vidd.epoch.end = new Date.now();
+              vidd.epoch.end = Date.now();
               vidd.failed_msg = 'Had to use the direct download option.';            
               inMemDB.saveDatabase(); // Force a DB save
 
@@ -460,7 +460,7 @@ app.post('/ytdl', [
         vidd.a_status = "error";
         vidd.failed_msg = e;
         vidd.m_status = "failed";
-        vidd.epoch.end = new Date.now();
+        vidd.epoch.end = Date.now();
   
         console.log('\nAudio Failed with error: ',e);
       })
@@ -488,7 +488,7 @@ app.post('/ytdl', [
         if (vidd.a_percent < 100.0) {
           vidd.a_status = "too_short";
           vidd.m_status = "failed";
-          vidd.epoch.end = new Date.now();
+          vidd.epoch.end = Date.now();
           vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
           console.log('\Audio only download: ' + vidd.a_percent + '%');
           return;
@@ -504,7 +504,7 @@ app.post('/ytdl', [
             console.log(output.join('\n') + "\n Merged Failed !!!");
             let vidd = dlsDB.get(db_doc_id);
             vidd.m_status = "failed";
-            vidd.epoch.end = new Date.now();
+            vidd.epoch.end = Date.now();
             vidd.failed_msg = err;
             inMemDB.saveDatabase(); // Force a DB save
 
@@ -514,7 +514,7 @@ app.post('/ytdl', [
             console.log(output.join('\n') + "\n Download Complete!");
             let vidd = dlsDB.get(db_doc_id);
             vidd.m_status = "complete";
-            vidd.epoch.end = new Date.now();
+            vidd.epoch.end = Date.now();
             inMemDB.saveDatabase(); // Force a DB save
 
             // Sort out permissions
