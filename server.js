@@ -208,7 +208,7 @@ app.post('/ytdl/remove', [
     return res.status(422).send("Error: Couldn't find that ID: " + doomed_id + "<br /><br /><a href='/ytdl/history'>Try again...</a>");
   }
   console.log('Data dump: ' + vidd);
-  dlsDB.findAndRemove({id: vidd.$loki});
+  dlsDB.remove(vidd);
 
   console.log('Deleted: ' + doomed_id + ', from the download DB.')
   res.send('Deleted: ' + doomed_id + '<br /><a href="/ytdl">Back to form...</a>' );
