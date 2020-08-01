@@ -140,11 +140,12 @@ app.get('/ytdl/history', (req, res) => {
     completedls.solokijs 
     for ( var i in completedls ) {
       console.log('Data dump: ' + JSON.stringify(completedls[i], null, 4) );
-      // if ( typeof completedls[i].epoch !== 'undefined' && completedls[i].epoch ) {
-      //   rowhtml += "<td>"+ completedls[i].epoch.end.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
-      // } else {
-      //   rowhtml += "<td>n/a</td>"
-      // }
+      if ( typeof completedls[i].epoch !== 'undefined' && completedls[i].epoch ) {
+        let when = new Date(completedls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
+        rowhtml += "<td>"+ when +"</td>"
+      } else {
+        rowhtml += "<td>n/a</td>"
+      }
       rowhtml += "<td>"+ completedls[i].uploader +"</td>"
       rowhtml += "<td>"+ completedls[i].title +"</td>"
       rowhtml += "<td>"+ completedls[i].filename +"</td>"
@@ -173,11 +174,12 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     for ( var i in faileddls ) {
       console.log('Data dump: ' + JSON.stringify(faileddls[i], null, 4) );
-      // if ( typeof faileddls[i].epoch !== 'undefined' && faileddls[i].epoch ) {
-      //   rowhtml += "<td>"+ faileddls[i].epoch.requested.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
-      // } else {
-      //   rowhtml += "<td>n/a</td>"
-      // }
+      if ( typeof faileddls[i].epoch !== 'undefined' && faileddls[i].epoch ) {
+        let when = new Date(faileddls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
+        rowhtml += "<td>"+ when +"</td>"
+      } else {
+        rowhtml += "<td>n/a</td>"
+      }
       frowhtml += "<td>"+ faileddls[i].uploader +"</td>"
       frowhtml += "<td>"+ faileddls[i].title +"</td>"
       frowhtml += "<td>"+ faileddls[i].req_url +"</td>"
