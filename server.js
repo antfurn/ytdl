@@ -170,8 +170,7 @@ app.get('/ytdl/history', (req, res) => {
       frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
       frowhtml += "<td>"+ faileddls[i].$loki +"</td>"
       frowhtml += "</tr><tr>";
-      frowhtml += "<td colspan=5>"+ faileddls[i].failed_msg +"</td>"
-      frowhtml += "<td colspan=5>"+ faileddls[i].stderr +"</td>"
+      frowhtml += "<td colspan=5>"+ JSON.stringify(faileddls[i].failed_msg, null, 2) +"</td>"
       frowhtml += "</td></tr><tr>";
     }
   }
@@ -208,7 +207,7 @@ app.post('/ytdl/remove', [
   if ( ! vidd ) {
     return res.status(422).send("Error: Couldn't find that ID: " + doomed_id + "<br /><br /><a href='/ytdl/history'>Try again...</a>");
   }
-  console.log('Data dump: ' + JSON.stringify(vidd) );
+  console.log('Data dump: ' + JSON.stringify(vidd, null, 4) );
   dlsDB.remove(vidd);
 
   console.log('Deleted: ' + doomed_id + ', from the download DB.')
