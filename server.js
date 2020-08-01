@@ -176,7 +176,7 @@ app.get('/ytdl/history', (req, res) => {
   }
   txthtml += frowhtml;
   txthtml += '</tr></table>';
-  txthtml += '<br /><form action="/ytdl/remove_entry" method="delete">';
+  txthtml += '<br /><form action="/ytdl/remove" method="delete">';
   txthtml += '<label>Enter ID to delete:  </label>';
   txthtml += '<input type="text" name="delete_id" style="width: 50px;" value="">';
   txthtml += '<br /><input type="submit" value="Delete entry [!NOT UNDOABLE!]">';
@@ -186,26 +186,26 @@ app.get('/ytdl/history', (req, res) => {
   res.send(txthtml);
 });
 
-// app.delete('/ytdl/remove_entry' [
-//   body('delete_id').isHexadecimal()
-// ], (req, res) => {
-//   // Extract the validation errors from a request.
-//   const errors = validationResult(req);
+app.delete('/ytdl/remove', [
+  body('delete_id').isHexadecimal()
+], (req, res) => {
+  // Extract the validation errors from a request.
+  const errors = validationResult(req);
 
 
-//   if (!errors.isEmpty()) {
-//     const err = stringifyObject(errors.array(), {
-//       indent: '  ',
-//       singleQuotes: false
-//     }); 
-//     return res.status(422).send("Error: Not a ID.<br />" + err + "<br /><a href='/ytdl/history'>Try again...</a>");
-//   }
+  if (!errors.isEmpty()) {
+    const err = stringifyObject(errors.array(), {
+      indent: '  ',
+      singleQuotes: false
+    }); 
+    return res.status(422).send("Error: Not a ID.<br />" + err + "<br /><a href='/ytdl/history'>Try again...</a>");
+  }
 
-//   let doomed_id = req.body.delete_id;
+  let doomed_id = req.body.delete_id;
 
-//   console.log('Deleted: ' + doomed_id + ', from the download DB.')
-//   res.send('Deleted: ' + doomed_id + '<br /><a href="/ytdl">Back to form...</a>' );
-// });
+  console.log('Deleted: ' + doomed_id + ', from the download DB.')
+  res.send('Deleted: ' + doomed_id + '<br /><a href="/ytdl">Back to form...</a>' );
+});
 
 app.post('/ytdl/update', (req, res) => {
 
