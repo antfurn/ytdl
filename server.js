@@ -171,6 +171,7 @@ app.get('/ytdl/history', (req, res) => {
       frowhtml += "<td>"+ faileddls[i].$loki +"</td>"
       frowhtml += "</tr><tr>";
       frowhtml += "<td colspan=5>"+ faileddls[i].failed_msg +"</td>"
+      frowhtml += "<td colspan=5>"+ faileddls[i].stderr +"</td>"
       frowhtml += "</td></tr><tr>";
     }
   }
