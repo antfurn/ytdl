@@ -87,7 +87,7 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<br /><a href="/ytdl/history">Download History...</a>';
   txthtml += '<br />';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>id:</th><th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th>';
+  txthtml += '<th>id:</th><th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th><th>Time sec</th>';
   txthtml += '</tr><tr>';
 
   let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete','failed'] }}).reverse();
@@ -100,6 +100,7 @@ app.get('/ytdl/status', (req, res) => {
       rowhtml += "<td>"+ inprogressdls[i].title +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].v_percent +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].a_percent +"</td>"
+      rowhtml += "<td>"+ Math.floor((timeIs - inprogressdls[i].epoc.requested) / 1000) +"</td>"
       //rowhtml += "<td>"+ inprogressdls[i].m_status +"</td>"
       rowhtml += "</tr><tr>";
     }
@@ -128,7 +129,7 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
+  txthtml += '<th>When:</th><th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
   txthtml += '</tr><tr>';
 
   let completedls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }}).reverse();
@@ -137,6 +138,11 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     completedls.solokijs 
     for ( var i in completedls ) {
+      if ( completedls[i].epoc ) {
+        rowhtml += "<td>"+ completedls[i].epoc.end.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
+      } else {
+        rowhtml += "<td>n/a</td>"
+      }
       rowhtml += "<td>"+ completedls[i].uploader +"</td>"
       rowhtml += "<td>"+ completedls[i].title +"</td>"
       rowhtml += "<td>"+ completedls[i].filename +"</td>"
@@ -269,6 +275,8 @@ app.post('/ytdl', [
 
     let vidd = {};
     vidd.req_url = req.body.video_url;
+    vidd.epoc = {};
+    vidd.epoc.requested = new Date();
     vidd.v_pos = 0;
     vidd.v_percent = 0;
     vidd.v_status = "waiting";
@@ -302,6 +310,7 @@ app.post('/ytdl', [
       console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
       // Create json obj of the video meta data we want
       let vidd = dlsDB.get(db_doc_id);
+      vidd.epoc.start = new Date();
       vidd.vid_id = vinfo.id;
       vidd.title = vinfo.title;
       vidd.uploader = vinfo.uploader;
@@ -490,6 +499,7 @@ app.post('/ytdl', [
             console.log(output.join('\n') + "\n Download Complete!");
             let vidd = dlsDB.get(db_doc_id);
             vidd.m_status = "complete";
+            vidd.epoc.end = new Date();
             inMemDB.saveDatabase(); // Force a DB save
 
             // Sort out permissions
