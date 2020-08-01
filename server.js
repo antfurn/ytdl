@@ -80,12 +80,14 @@ app.get('/ytdl/status', (req, res) => {
   txthtml += '<html>';
   txthtml += '<head> <meta http-equiv="refresh" content="2"> </head>';
   txthtml += '<body>This page auto refresh every 2 seconds<br />';
+  let timeIs = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+  txthtml += '<br />***' + timeIs;
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/history">Download History...</a>';
   txthtml += '<br />';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th>';
+  txthtml += '<th>id:</th><th>Channel:</th><th>Title:</th><th>Video %</th><th>Audio %</th>';
   txthtml += '</tr><tr>';
 
   let inprogressdls = dlsDB.find({ 'm_status' : { '$nin' : ['complete','failed'] }}).reverse();
@@ -93,6 +95,7 @@ app.get('/ytdl/status', (req, res) => {
     rowhtml = "<td>All done :-)</td>"
   } else {
     for ( var i in inprogressdls ) {
+      rowhtml += "<td>"+ inprogressdls[i].$loki +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].uploader +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].title +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].v_percent +"</td>"
@@ -153,7 +156,7 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br />';
   txthtml += '<br />The below downloads failed :\'(';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th>';
+  txthtml += '<th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th><th>id</th>';
   txthtml += '</tr><tr>';
   
   let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }}).reverse();
@@ -165,8 +168,9 @@ app.get('/ytdl/history', (req, res) => {
       frowhtml += "<td>"+ faileddls[i].title +"</td>"
       frowhtml += "<td>"+ faileddls[i].req_url +"</td>"
       frowhtml += "<td>"+ faileddls[i].m_status +"</td>"
+      frowhtml += "<td>"+ faileddls[i].$loki +"</td>"
       frowhtml += "</tr><tr>";
-      frowhtml += "<td colspan=4>"+ faileddls[i].failed_msg +"</td>"
+      frowhtml += "<td colspan=5>"+ faileddls[i].failed_msg +"</td>"
       frowhtml += "</td></tr><tr>";
     }
   }
