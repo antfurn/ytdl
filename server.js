@@ -101,7 +101,7 @@ app.get('/ytdl/status', (req, res) => {
       rowhtml += "<td>"+ inprogressdls[i].title +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].v_percent +"</td>"
       rowhtml += "<td>"+ inprogressdls[i].a_percent +"</td>"
-      rowhtml += "<td>"+ Math.floor((timeIs.epoc - inprogressdls[i].epoc.start.epoc) / 1000) +"</td>"
+      rowhtml += "<td>"+ Math.floor((timeIs - inprogressdls[i].epoc.start) / 1000) +"</td>"
       //rowhtml += "<td>"+ inprogressdls[i].m_status +"</td>"
       rowhtml += "</tr><tr>";
     }
@@ -139,7 +139,7 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     completedls.solokijs 
     for ( var i in completedls ) {
-      if ( completedls[i].epoc ) {
+      if ( completedls[i].epoc.end ) {
         rowhtml += "<td>"+ Date(completedls[i].epoc.end).toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
@@ -171,7 +171,7 @@ app.get('/ytdl/history', (req, res) => {
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
     for ( var i in faileddls ) {
-      if ( completedls[i].epoc ) {
+      if ( completedls[i].epoc.requested ) {
         rowhtml += "<td>"+ Date(faileddls[i].epoc.requested).toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
