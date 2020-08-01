@@ -207,7 +207,7 @@ app.post('/ytdl/remove', [
   if ( ! vidd ) {
     return res.status(422).send("Error: Couldn't find that ID: " + doomed_id + "<br /><br /><a href='/ytdl/history'>Try again...</a>");
   }
-  console.log('Data dump: ' + vidd);
+  console.log('Data dump: ' + JSON.stringify(vidd) );
   dlsDB.remove(vidd);
 
   console.log('Deleted: ' + doomed_id + ', from the download DB.')
