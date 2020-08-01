@@ -171,7 +171,7 @@ app.get('/ytdl/history', (req, res) => {
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
     for ( var i in faileddls ) {
-      if ( typeof completedls[i].epoc.requested !== 'undefined' && completedls[i].epoc.requested ) {
+      if ( typeof faileddls[i].epoc.requested !== 'undefined' && faileddls[i].epoc.requested ) {
         rowhtml += "<td>"+ faileddls[i].epoc.requested.toISOString().replace(/T/, ' ').replace(/\..+/, '') +"</td>"
       } else {
         rowhtml += "<td>n/a</td>"
