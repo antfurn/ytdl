@@ -176,7 +176,7 @@ app.get('/ytdl/history', (req, res) => {
   }
   txthtml += frowhtml;
   txthtml += '</tr></table>';
-  txthtml += '<br /><form action="/ytdl/remove" method="delete">';
+  txthtml += '<br /><form action="/ytdl/remove" method="post">';
   txthtml += '<label>Enter ID to delete:  </label>';
   txthtml += '<input type="text" name="delete_id" style="width: 50px;" value="">';
   txthtml += '<br /><input type="submit" value="Delete entry [!NOT UNDOABLE!]">';
@@ -186,7 +186,7 @@ app.get('/ytdl/history', (req, res) => {
   res.send(txthtml);
 });
 
-app.delete('/ytdl/remove', [
+app.post('/ytdl/remove', [
   body('delete_id').isHexadecimal()
 ], (req, res) => {
   // Extract the validation errors from a request.
