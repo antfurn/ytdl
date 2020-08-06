@@ -139,7 +139,7 @@ app.get('/ytdl/history', (req, res) => {
   } else {
     completedls.solokijs 
     for ( var i in completedls ) {
-      console.log('Data dump: ' + JSON.stringify(completedls[i], null, 4) );
+      //console.log('Data dump: ' + JSON.stringify(completedls[i], null, 4) );
       if ( typeof completedls[i].epoch !== 'undefined' && completedls[i].epoch ) {
         let when = new Date(completedls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
         rowhtml += "<td>"+ when +"</td>"
@@ -173,12 +173,12 @@ app.get('/ytdl/history', (req, res) => {
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
     for ( var i in faileddls ) {
-      console.log('Data dump: ' + JSON.stringify(faileddls[i], null, 4) );
+      //console.log('Data dump: ' + JSON.stringify(faileddls[i], null, 4) );
       if ( typeof faileddls[i].epoch !== 'undefined' && faileddls[i].epoch ) {
         let when = new Date(faileddls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
-        rowhtml += "<td>"+ when +"</td>"
+        frowhtml += "<td>"+ when +"</td>"
       } else {
-        rowhtml += "<td>n/a</td>"
+        frowhtml += "<td>n/a</td>"
       }
       frowhtml += "<td>"+ faileddls[i].uploader +"</td>"
       frowhtml += "<td>"+ faileddls[i].title +"</td>"
