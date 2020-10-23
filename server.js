@@ -175,7 +175,14 @@ app.get('/ytdl/history', (req, res) => {
     for ( var i in faileddls ) {
       //console.log('Data dump: ' + JSON.stringify(faileddls[i], null, 4) );
       if ( typeof faileddls[i].epoch !== 'undefined' && faileddls[i].epoch ) {
-        let when = new Date(faileddls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
+        let when = "oops!"
+        if ( typeof faileddls[i].epoch.end !== 'undefined' ) {
+          when = new Date(faileddls[i].epoch.end).toISOString().replace(/T/, ' ').replace(/\..+/, '')
+        } else if ( typeof faileddls[i].epoch.start !== 'undefined' ) {
+          when = new Date(faileddls[i].epoch.start).toISOString().replace(/T/, ' ').replace(/\..+/, '')
+        } else {
+          when = new Date(faileddls[i].epoch.requested).toISOString().replace(/T/, ' ').replace(/\..+/, '')          
+        }
         frowhtml += "<td>"+ when +"</td>"
       } else {
         frowhtml += "<td>n/a</td>"
