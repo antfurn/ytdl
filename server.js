@@ -168,7 +168,7 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<th>When:</th><th>Channel:</th><th>Title:</th><th>Requested URL:</th><th>Status</th><th>id</th>';
   txthtml += '</tr><tr>';
   
-  let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed'] }}).reverse();
+  let faileddls = dlsDB.find({ 'm_status' : { '$in' : ['failed','waiting','started'] }}).reverse();
   if ( faileddls === null | faileddls.length === 0 ){
     rowhtml = "<td>Empty :-(</td><td>so unused and unloved</td><td>:'(</td><td>0MB</td>"
   } else {
