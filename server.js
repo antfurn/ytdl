@@ -6,6 +6,7 @@ const stringifyObject = require('stringify-object');
 const path = require('path','sep')
 const fs = require('fs');
 const youtubedl = require('youtube-dl');
+const exec = require('child_process');
 
 // Create a local in memory database (loki)
 var loki = require( 'lokijs' );
@@ -61,6 +62,8 @@ app.get('/ytdl', (req, res) => {
   <form action="/ytdl/" method="post"> \
   <label>Enter URL to download:  </label><br /> \
   <input type="text" name="video_url" style="width: 400px;" value=""> \
+  <br /><input type="checkbox" id="cbpip720" name="pip720" value="yes"> \
+  <label for="cbpip720"> Create 720p version for PIP?</label> \
   <br /><input type="submit" value="GO"> \
   </form> \
   <br /><a href="/ytdl/status">Download status...</a> \
@@ -277,7 +280,7 @@ app.post('/ytdl', [
     }
 
     // Data from form is valid.
-    let dling = "dling: " + req.body.video_url;
+    //let dling = "dling: " + req.body.video_url;
     const ytdl_folder = "ytdl";
 
     if (!fs.existsSync(ytdl_folder)){
@@ -292,6 +295,7 @@ app.post('/ytdl', [
 
     let vidd = {};
     vidd.req_url = req.body.video_url;
+    vidd.req_pip720 = req.body.pip720;
     vidd.epoch = {};
     vidd.epoch.requested = Date.now();
     vidd.v_pos = 0;
@@ -346,6 +350,12 @@ app.post('/ytdl', [
       txthtml += '<html>';
       txthtml += '<head>Starting download of:' + vinfo.title + '</head>';
       txthtml += '<body>info._filename: ' + vinfo._filename;
+      txthtml += '<br />';
+      txthtml += 'Creating 720p PIP version: ';
+      if (! vidd.req_pip720 ) {
+        txthtml += 'No';
+      } else {
+        txthtml += vidd.req_pip720; }
       txthtml += '<br />';
       txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
       txthtml += '<br />';
@@ -424,12 +434,7 @@ app.post('/ytdl', [
               inMemDB.saveDatabase(); // Force a DB save
 
               // Sort out permissions
-              var chmodr = require('chmodr');
-              console.log('chmod-ing folder: ' + uploader_folder);
-              chmodr(uploader_folder, 0o775, function (err) {
-                if (err) { throw err; }
-                console.log("\n Fixed Permissions");
-              }); 
+              fixPermissions(uploader_folder); 
             })
           }
         });
@@ -527,67 +532,36 @@ app.post('/ytdl', [
             inMemDB.saveDatabase(); // Force a DB save
 
             // Sort out permissions
-            var chmodr = require('chmodr');
-            console.log('chmod-ing folder: ' + uploader_folder);
-            chmodr(uploader_folder, 0o775, function (err) {
-              if (err) { throw err; }
-              console.log("\n Fixed Permissions");
-            }); 
+            fixPermissions(uploader_folder); 
           }
         });
         
       });
-    });
-
-
-    
-
-/*
-    let filename = "test.mp4";
-    youtubedl.getInfo(req.body.video_url, options, function (err, info) {
-      if (err) throw err
-
-
-      dling +='<br />id:'+ info.id;
-      dling +='<br />title:'+ info.title;
-      dling +='<br />uploader:'+ info.uploader;
-      dling +='<br />thumbnail:'+ info.thumbnail;
-      dling +='<br />description:'+ info.description;
-      dling +='<br />filename:'+ info._filename;
-      dling +='<br />format id:'+ info.format_id;
-        res.send(dling);
-      filename = info._filename;
-
-      youtubedl.exec(req.body.video_url, options, {}, function(err, output) {
-        if (err) throw err
-       
-        console.log(output.join('Complete!\n'));
-      })
-*/
-
-
-      // let url = "" + req.body.video_url;
-      // const video = youtubedl(url, // options
-      //   // Optional arguments passed to youtube-dl.
-      //   //['--format=18'],
-      //   ['-f bestvideo+bestaudio'],
-      //   // Additional options can be given for calling `child_process.execFile()`.
-      //   //{ cwd: __dirname }
-      // )
-
-      // // Will be called when the download starts.
-      // video.on('info', function (info) {
-      //   console.log('Download started')
-      //   console.log('filename: ' + info._filename)
-      //   console.log('size: ' + info.size)
-
-      //   res.send(dling + ", size: " + info.size);
-      // })
-
-      // video.pipe(fs.createWriteStream(filename))
-    //});
-  
+    });  
 });
+
+
+function fixPermissions(uploader_folder) {
+  var chmodr = require('chmodr');
+  console.log('chmod-ing folder: ' + uploader_folder);
+  chmodr(uploader_folder, 0o775, function (err) {
+    if (err) { throw err; }
+    console.log("\n Fixed Permissions");
+  });
+}
+
+function convertOutput( vidd ) {
+  console.log( "convertOutput::" );
+
+  inMemDB.saveDatabase(); // Force a DB save
+
+  ffpmeg_cm = "ffmpeg -i" + vidd._filename + "-c:v libx265 -preset medium -crf 28 -vf scale=-1:720 -vtag hvc1 -c:a aac -b:a 128k" + vidd._filename + ".720p.mov";
+
+  exec("", (error, stdout, stderr) => {
+
+  });
+}
+
 
 app.listen(PORT, HOST);
 console.log(`Running on http://${HOST}:${PORT}`);
