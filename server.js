@@ -543,11 +543,17 @@ app.post('/ytdl', [
 
 function fixPermissions(uploader_folder) {
   var chmodr = require('chmodr');
+  var chownr = require('chownr');
   console.log('chmod-ing folder: ' + uploader_folder);
   chmodr(uploader_folder, 0o775, function (err) {
     if (err) { throw err; }
-    console.log("\n Fixed Permissions");
+    console.log('chown-ing folder: ' + uploader_folder);
+    chownr(uploader_folder, 1001, 1000, function (err) {
+      if (err) { throw err; }
+      console.log("\n Fixed Permissions");
+    });
   });
+
 }
 
 function convertOutput( vidd ) {
