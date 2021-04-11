@@ -5,7 +5,7 @@ const { body,validationResult } = require('express-validator');
 const stringifyObject = require('stringify-object');
 const path = require('path','sep')
 const fs = require('fs');
-const youtubedl = require('youtube-dl-exec');
+const youtubedl = require('youtube-dl');
 const exec = require('child_process');
 
 // Create a local in memory database (loki)
