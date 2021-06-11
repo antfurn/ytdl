@@ -311,6 +311,12 @@ app.post('/ytdl', [
     vidd.m_status = "waiting";
     var db_doc_id = dlsDB.insert( vidd ).$loki;
 
+    // Branch off if this is audio only
+    if ( vidd.req_audioOnly ) {
+      dlAudioOnly(req,res);
+      return;
+    }
+
     var video = youtubedl(
       req.body.video_url,
       // Optional arguments passed to youtube-dl.
@@ -549,6 +555,113 @@ app.post('/ytdl', [
     });  
 });
 
+function dlAudioOnly (req, res)  {
+/*
+Audio formats
+id	quality	codec	examples
+258	386k	m4a	youtube-dl -F NMANRHz4UAY
+256	195k	m4a	youtube-dl -F NMANRHz4UAY
+251	160k	Opus	youtube-dl -F S8Zt6cB_NPU
+140	128k	m4a	youtube-dl -F S8Zt6cB_NPU
+250	70k	Opus	youtube-dl -F S8Zt6cB_NPU
+249	50k	Opus	youtube-dl -F S8Zt6cB_NPU
+*/
+  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+    
+  console.log('\nStart Audio Only');
+  var audio = youtubedl(
+    req.body.video_url,
+    // Optional arguments passed to youtube-dl.
+    aoptions
+  );
+    
+  var asize = 0
+  audio.on('info', function (ainfo) {
+    'use strict'
+    asize = ainfo.size;
+
+    let vidd = dlsDB.get(db_doc_id);
+    vidd.a_format_id = ainfo.format_id;
+    vidd.a_size = ainfo.size;
+    vidd.a_pos = 0;
+    vidd.a_percent = 0;
+    vidd.a_status = "starting";
+  
+    console.log('Got audio info: ' + ainfo.title + "<br />info._filename: " + ainfo._filename);
+    
+    
+    let txthtml = "";
+    txthtml += '<html>';
+    txthtml += '<head>Starting Audio only download of:' + ainfo.title + '</head>';
+    txthtml += '<body>info._filename: ' + ainfo._filename;
+    txthtml += '<br />';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
+    txthtml += '</body></html>';
+
+    res.send(txthtml);
+
+    //var file = path.join(__dirname, info._filename)
+    audio.pipe(fs.createWriteStream(ainfo._filename));
+  });
+
+  audio.on('error', (e) => {
+    let vidd = dlsDB.get(db_doc_id);
+    vidd.a_status = "error";
+    vidd.failed_msg = e;
+    vidd.m_status = "failed";
+    vidd.epoch.end = Date.now();
+
+    console.log('\nAudio Failed with error: ',e);
+  })
+  
+  var apos = 0
+  audio.on('data', function data (achunk) {
+    'use strict'
+    apos += achunk.length;
+  
+    // `size` should not be 0 here.
+    if (asize) {
+      var percent = ((apos / asize) * 100).toFixed(2);
+      let vidd = dlsDB.get(db_doc_id);
+      if ( Math.floor(percent/10.0)-Math.floor(vidd.a_percent/10.0) > 0 ) console.log(' '+percent+'%');
+      vidd.a_status = "downloading";
+      vidd.a_percent = percent;
+      vidd.a_pos = apos;
+    }
+  });
+  
+  audio.on('end', function end () {
+    'use strict'
+    let vidd = dlsDB.get(db_doc_id);
+    // Make sure it go to 100%
+    if (vidd.a_percent < 100.0) {
+      vidd.a_status = "too_short";
+      vidd.m_status = "failed";
+      vidd.epoch.end = Date.now();
+      vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
+      console.log('\Audio only download: ' + vidd.a_percent + '%');
+      return;
+    }
+    // else
+    console.log('\nAudio Done');
+    vidd.a_status = "complete";
+    vidd.m_status = "started";
+
+        console.log(output.join('\n') + "\n Download Complete!");
+        let vidd = dlsDB.get(db_doc_id);
+        vidd.m_status = "complete";
+        vidd.epoch.end = Date.now();
+        inMemDB.saveDatabase(); // Force a DB save
+
+        // Sort out permissions
+        fixPermissions(uploader_folder);     
+  });
+}
 
 function fixPermissions(uploader_folder) {
   var chmodr = require('chmodr');
