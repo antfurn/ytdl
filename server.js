@@ -64,6 +64,8 @@ app.get('/ytdl', (req, res) => {
   <input type="text" name="video_url" style="width: 400px;" value=""> \
   <br /><input type="checkbox" id="cbpip720" name="pip720" value="yes"> \
   <label for="cbpip720"> Create 720p version for PIP?</label> \
+  <br /><input type="checkbox" id="cdaudioOnly" name="audioOnly" value="yes"> \
+  <label for="cdaudioOnly"> Download audio only.</label> \
   <br /><input type="submit" value="GO"> \
   </form> \
   <br /><a href="/ytdl/status">Download status...</a> \
@@ -296,6 +298,7 @@ app.post('/ytdl', [
     let vidd = {};
     vidd.req_url = req.body.video_url;
     vidd.req_pip720 = req.body.pip720;
+    vidd.req_audioOnly = req.body.audioOnly;
     vidd.epoch = {};
     vidd.epoch.requested = Date.now();
     vidd.v_pos = 0;
@@ -356,6 +359,12 @@ app.post('/ytdl', [
         txthtml += 'No';
       } else {
         txthtml += vidd.req_pip720; }
+      txthtml += '<br />';
+      txthtml += 'Dowloading audio only: ';
+      if (! vidd.req_audioOnly ) {
+        txthtml += 'No';
+      } else {
+        txthtml += vidd.req_audioOnly; }
       txthtml += '<br />';
       txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
       txthtml += '<br />';
