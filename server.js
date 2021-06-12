@@ -313,7 +313,7 @@ app.post('/ytdl', [
 
     // Branch off if this is audio only
     if ( vidd.req_audioOnly ) {
-      dlAudioOnly(req,res);
+      dlAudioOnly(req,res,db_doc_id);
       return;
     }
 
@@ -555,7 +555,9 @@ app.post('/ytdl', [
     });  
 });
 
-function dlAudioOnly (req, res)  {
+function dlAudioOnly (req, res, db_doc_id)  {
+  let vidd = dlsDB.get(db_doc_id);
+  vidd.v_status = "n/a";
 /*
 Audio formats
 id	quality	codec	examples
@@ -566,7 +568,7 @@ id	quality	codec	examples
 250	70k	Opus	youtube-dl -F S8Zt6cB_NPU
 249	50k	Opus	youtube-dl -F S8Zt6cB_NPU
 */
-  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
     
   console.log('\nStart Audio Only');
   var audio = youtubedl(
@@ -650,16 +652,14 @@ id	quality	codec	examples
     // else
     console.log('\nAudio Done');
     vidd.a_status = "complete";
-    vidd.m_status = "started";
+    vidd.m_status = "n/a";
 
-        console.log(output.join('\n') + "\n Download Complete!");
-        let vidd = dlsDB.get(db_doc_id);
-        vidd.m_status = "complete";
-        vidd.epoch.end = Date.now();
-        inMemDB.saveDatabase(); // Force a DB save
+    console.log(output.join('\n') + "\n Download Complete!");
+    vidd.epoch.end = Date.now();
+    inMemDB.saveDatabase(); // Force a DB save
 
-        // Sort out permissions
-        fixPermissions(uploader_folder);     
+    // Sort out permissions
+    fixPermissions(uploader_folder);     
   });
 }
 
