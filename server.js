@@ -568,7 +568,8 @@ id	quality	codec	examples
 250	70k	Opus	youtube-dl -F S8Zt6cB_NPU
 249	50k	Opus	youtube-dl -F S8Zt6cB_NPU
 */
-  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+  //const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-i', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', '0' ];
     
   console.log('\nStart Audio Only');
   var audio = youtubedl(
@@ -578,11 +579,32 @@ id	quality	codec	examples
   );
     
   var asize = 0
+  var uploader_folder = ""
   audio.on('info', function (ainfo) {
     'use strict'
     asize = ainfo.size;
-
+    
+    // sort out folder
+    const path_split = ainfo._filename.split(path.sep);
+    uploader_folder = path.join(path_split[0],path_split[1]);
+    if (!fs.existsSync(uploader_folder)){
+      console.log('Creating folder: ' + uploader_folder);
+      fs.mkdirSync(uploader_folder);
+    }
+  
+    // Create json obj of the video meta data we want
     let vidd = dlsDB.get(db_doc_id);
+    vidd.epoch.start = Date.now();
+    vidd.vid_id = ainfo.id;
+    vidd.title = ainfo.title;
+    vidd.uploader = ainfo.uploader;
+    vidd.thumbnail = ainfo.thumbnail;
+    vidd.description = ainfo.description;
+    vidd._filename = ainfo._filename;
+    vidd.filename = path_split[2];
+    vidd.v_format_id = "";
+    vidd.v_size = -1;
+
     vidd.a_format_id = ainfo.format_id;
     vidd.a_size = ainfo.size;
     vidd.a_pos = 0;
@@ -619,6 +641,20 @@ id	quality	codec	examples
     vidd.epoch.end = Date.now();
 
     console.log('\nAudio Failed with error: ',e);
+    
+    let txthtml = "";
+    txthtml += '<html>';
+    txthtml += '<head>FAILED: Audio only download of:' + req.body.video_url + '</head>';
+    txthtml += '<body>Error: ' + e;
+    txthtml += '<br />';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
+    txthtml += '</body></html>';
+    res.send(txthtml);
   })
   
   var apos = 0
@@ -652,9 +688,9 @@ id	quality	codec	examples
     // else
     console.log('\nAudio Done');
     vidd.a_status = "complete";
-    vidd.m_status = "n/a";
+    vidd.m_status = "complete";
 
-    console.log(output.join('\n') + "\n Download Complete!");
+    console.log("Download Complete!");
     vidd.epoch.end = Date.now();
     inMemDB.saveDatabase(); // Force a DB save
 
