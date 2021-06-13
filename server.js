@@ -590,7 +590,7 @@ id	quality	codec	examples
   
   const options = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--extract-audio', '--audio-format', 'mp3'];  
   const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--dump-json', '--audio-format', 'mp3' ];
-    
+
   console.log('\nStart Audio Only');
 
   // let txthtml = "";
