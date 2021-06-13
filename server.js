@@ -123,6 +123,20 @@ app.get('/ytdl/status', (req, res) => {
   res.send(txthtml);
 });
 
+app.post('/download', function(req, res){
+  console.log('\nDownload req: ' + JSON.stringify(req.body));
+
+  // check to make sure something selected
+  if ( req.body.id ) {
+    const file = `${__dirname}/` + req.body.id;  
+    console.log('\nStart Download: ' + file);
+
+    res.download(file); // Set disposition and send it.
+  } else {    
+    return res.status(422).send("Error: Nothing selected to download.<br /><br /><a href='/ytdl/history'>Try again...</a>");
+  }
+});
+
 app.get('/ytdl/history', (req, res) => {
 
   let txthtml = "";
@@ -134,8 +148,9 @@ app.get('/ytdl/history', (req, res) => {
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+  txthtml += '<form action="/download" method="post">';
   txthtml += '<table border="1"><tr>';
-  txthtml += '<th>When:</th><th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
+  txthtml += '<th>When:</th><th>Download</th><th>Channel:</th><th>Title:</th><th>File name:</th><th>Size</th>';
   txthtml += '</tr><tr>';
 
   let completedls = dlsDB.find({ 'm_status' : { '$in' : ['complete'] }}).reverse();
@@ -151,9 +166,12 @@ app.get('/ytdl/history', (req, res) => {
       } else {
         rowhtml += "<td>n/a</td>"
       }
+      rowhtml += '<td><input type="radio" id="a'+i+'" name="id" value="'+ completedls[i]._filename +'">'
+      rowhtml += '<label for="a'+i+'">'+ i +'</label>'
+      rowhtml += '<input type="submit" value="DL"></td>'
       rowhtml += "<td>"+ completedls[i].uploader +"</td>"
       rowhtml += "<td>"+ completedls[i].title +"</td>"
-      rowhtml += "<td>"+ completedls[i].filename +"</td>"
+      rowhtml += '<td>'+ completedls[i].filename +'</td>'
       rowhtml += "<td>"+ ((completedls[i].v_size+completedls[i].a_size)/(1024*1024)).toFixed(2) +"MB</td>"
       //rowhtml += "<td>"+ inprogressdls[i].m_status +"</td>"
       rowhtml += "</tr><tr>";
@@ -161,7 +179,7 @@ app.get('/ytdl/history', (req, res) => {
   }
 
   txthtml += rowhtml;
-  txthtml += '</tr></table>';
+  txthtml += '</tr></table></form>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl">Back to form...</a>';
   txthtml += '<br />';
@@ -313,7 +331,7 @@ app.post('/ytdl', [
 
     // Branch off if this is audio only
     if ( vidd.req_audioOnly ) {
-      dlAudioOnly(req,res);
+      dlAudioOnly(req,res,db_doc_id);
       return;
     }
 
@@ -555,7 +573,9 @@ app.post('/ytdl', [
     });  
 });
 
-function dlAudioOnly (req, res)  {
+function dlAudioOnly (req, res, db_doc_id)  {
+  let vidd = dlsDB.get(db_doc_id);
+  vidd.v_status = "n/a";
 /*
 Audio formats
 id	quality	codec	examples
@@ -566,9 +586,51 @@ id	quality	codec	examples
 250	70k	Opus	youtube-dl -F S8Zt6cB_NPU
 249	50k	Opus	youtube-dl -F S8Zt6cB_NPU
 */
-  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+  //const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
+  
+  const options = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--extract-audio', '--audio-format', 'mp3'];  
+  const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--dump-json', '--audio-format', 'mp3' ];
     
   console.log('\nStart Audio Only');
+
+  // let txthtml = "";
+  // txthtml += '<html>';
+  // txthtml += '<head>Starting Audio only download of:' + ainfo.title + '</head>';
+  // txthtml += '<body>info._filename: ' + ainfo._filename;
+  // txthtml += '<br />';
+  // txthtml += '<br />';
+  // txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
+  // txthtml += '<br />';
+  // txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+  // txthtml += '<br />';
+  // txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
+  // txthtml += '</body></html>';
+
+  // res.send(txthtml);
+  // youtubedl.exec(req.body.video_url, aoptions, {}, function(err, output) {
+  //   if (err) {
+  //     console.log(output.join('\n') + "\n Download Failed !!!");
+  //     let vidd = dlsDB.get(db_doc_id);
+  //     vidd.m_status = "failed";
+  //     vidd.epoch.end = Date.now();
+  //     vidd.failed_msg = err;
+  //     inMemDB.saveDatabase(); // Force a DB save
+
+  //     throw err
+  //   } else {
+  //     //res.send("Finished download ");
+  //     console.log(output.join('\n') + "\n Audio Complete!");
+  //     let vidd = dlsDB.get(db_doc_id);
+  //     vidd.a_status = "complete";
+  //     vidd.m_status = "complete";
+  //     vidd.epoch.end = Date.now();
+  //     inMemDB.saveDatabase(); // Force a DB save
+
+  //     // Sort out permissions
+  //     fixPermissions(uploader_folder); 
+  //   }
+
+
   var audio = youtubedl(
     req.body.video_url,
     // Optional arguments passed to youtube-dl.
@@ -576,11 +638,32 @@ id	quality	codec	examples
   );
     
   var asize = 0
+  var uploader_folder = ""
   audio.on('info', function (ainfo) {
     'use strict'
     asize = ainfo.size;
-
+    
+    // sort out folder
+    const path_split = ainfo._filename.split(path.sep);
+    uploader_folder = path.join(path_split[0],path_split[1]);
+    if (!fs.existsSync(uploader_folder)){
+      console.log('Creating folder: ' + uploader_folder);
+      fs.mkdirSync(uploader_folder);
+    }
+  
+    // Create json obj of the video meta data we want
     let vidd = dlsDB.get(db_doc_id);
+    vidd.epoch.start = Date.now();
+    vidd.vid_id = ainfo.id;
+    vidd.title = ainfo.title;
+    vidd.uploader = ainfo.uploader;
+    vidd.thumbnail = ainfo.thumbnail;
+    vidd.description = ainfo.description;
+    vidd._filename = ainfo._filename;
+    vidd.filename = path_split[2];
+    vidd.v_format_id = "";
+    vidd.v_size = -1;
+
     vidd.a_format_id = ainfo.format_id;
     vidd.a_size = ainfo.size;
     vidd.a_pos = 0;
@@ -617,6 +700,20 @@ id	quality	codec	examples
     vidd.epoch.end = Date.now();
 
     console.log('\nAudio Failed with error: ',e);
+    
+    let txthtml = "";
+    txthtml += '<html>';
+    txthtml += '<head>FAILED: Audio only download of:' + req.body.video_url + '</head>';
+    txthtml += '<body>Error: ' + e;
+    txthtml += '<br />';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
+    txthtml += '<br />';
+    txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
+    txthtml += '</body></html>';
+    res.send(txthtml);
   })
   
   var apos = 0
@@ -648,19 +745,39 @@ id	quality	codec	examples
       return;
     }
     // else
-    console.log('\nAudio Done');
     vidd.a_status = "complete";
     vidd.m_status = "started";
-
-        console.log(output.join('\n') + "\n Download Complete!");
+    
+    console.log('\nAudio dl Done');
+    youtubedl.exec(req.body.video_url, options, {}, function(err, output) {
+      if (err) {
+        console.log(output.join('\n') + "\n Audio Exctract Failed !!!");
         let vidd = dlsDB.get(db_doc_id);
+        vidd.m_status = "failed";
+        vidd.epoch.end = Date.now();
+        vidd.failed_msg = err;
+        inMemDB.saveDatabase(); // Force a DB save
+
+        throw err
+      } else {
+        console.log('\nAudio extract Done');
         vidd.m_status = "complete";
+
+        // Correct filename to the mp3 one
+        vidd._filename = vidd._filename.slice(0,-3) + "mp3";
+        vidd.filename = vidd.filename.slice(0,-3) + "mp3";
+
+
+        console.log("Download Complete!");
         vidd.epoch.end = Date.now();
         inMemDB.saveDatabase(); // Force a DB save
 
         // Sort out permissions
         fixPermissions(uploader_folder);     
+      }
+      });
   });
+  
 }
 
 function fixPermissions(uploader_folder) {
