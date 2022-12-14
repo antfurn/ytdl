@@ -10,7 +10,7 @@
   "dependencies": {
     "chmodr": "^1.2.0",
     "chownr": "^2.0.0",
-    "express": "^4.16.1",
+    "express": "^4.17.3",
     "express-validator": "^6.5.0",
     "lokijs": "^1.5.8",
     "stringify-object": "^3.3.0",
