@@ -14,8 +14,8 @@ echo Doing:: docker build
 # Docker: stop/remove old container
 echo Doing:: stop/remove old container
 docker ps -a
-docker stop ytdlpage
-docker rm ytdlpage
+docker stop ytdlpage2
+docker rm ytdlpage2
 
 # Docker: start ytdl container
 echo Doing:: docker run

@@ -1,1 +1,1 @@
-docker build -t antfurn/ytdl-page-app .
+docker build -t antfurn/ytdl-page-app2 .
