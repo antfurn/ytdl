@@ -5,7 +5,7 @@ const { body,validationResult } = require('express-validator');
 const stringifyObject = require('stringify-object');
 const path = require('path','sep')
 const fs = require('fs');
-const youtubedl = require('youtube-dl');
+const youtubedl = require('youtube-dl-exec');
 const exec = require('child_process');
 
 // Create a local in memory database (loki)
@@ -261,26 +261,26 @@ app.post('/ytdl/remove', [
 });
 
 app.post('/ytdl/update', (req, res) => {
+  // const downloader = require('youtube-dl/lib/downloader');
 
-  const downloader = require('youtube-dl/lib/downloader');
-
-  let ytdl_apath = youtubedl.getYtdlBinary();
-  console.log( "youtube-dl apath: " + ytdl_apath );
-  let ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("/"));
-  if ( ytdl_path.length < 1) { 
-    ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("\\"));
-  }
-  console.log( "youtube-dl  path: " + ytdl_path );
+  // let ytdl_apath = youtubedl.getYtdlBinary();
+  // console.log( "youtube-dl apath: " + ytdl_apath );
+  // let ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("/"));
+  // if ( ytdl_path.length < 1) { 
+  //   ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("\\"));
+  // }
+  // console.log( "youtube-dl  path: " + ytdl_path );
 
 
-  //downloader(youtubedl.getYtdlBinary(), function error(err, done) {
-  downloader(ytdl_path, function error(err, done) {
-    'use strict'
-    if (err) throw err
+  // //downloader(youtubedl.getYtdlBinary(), function error(err, done) {
+  // downloader(ytdl_path, function error(err, done) {
+  //   'use strict'
+  //   if (err) throw err
    
-    console.log(done)
-    res.send('Updated to: ' + done + '<br /><a href="/ytdl">Back to form...</a>' );
-  })
+  //   console.log(done)
+  //   res.send('Updated to: ' + done + '<br /><a href="/ytdl">Back to form...</a>' );
+  // })
+  res.send('Sorry not implemeted!<br /><a href="/ytdl">Back to form...</a>' );
 });
 
 app.post('/ytdl', [
@@ -334,6 +334,22 @@ app.post('/ytdl', [
       dlAudioOnly(req,res,db_doc_id);
       return;
     }
+
+    youtubedl('https://www.youtube.com/watch?v=6xKWiCMKKJg', {
+      dumpSingleJson: true,
+      noCheckCertificates: true,
+      noWarnings: true,
+      preferFreeFormats: true,
+      addHeader: [
+        'referer:youtube.com',
+        'user-agent:googlebot'
+      ]
+    
+    }).then(output => console.log(output))
+
+
+
+
 
     var video = youtubedl(
       req.body.video_url,
