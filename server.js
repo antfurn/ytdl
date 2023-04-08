@@ -346,6 +346,7 @@ app.post('/ytdl', [
       'user-agent:googlebot'
     ],
     output: 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s',
+    format: 'bestvideo+bestaudio',
     windowsFilenames: true
 
   }).then(vinfo => {
@@ -355,7 +356,7 @@ app.post('/ytdl', [
     var uploader_folder = ""
   
     //   console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
-    console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
+    console.log('Got video info: ' + vinfo.title + "<br />filename: " + vinfo.requested_downloads[0]._filename);
     // Create json obj of the video meta data we want
     let vidd = dlsDB.get(db_doc_id);
     vidd.epoch.start = Date.now();
@@ -381,8 +382,8 @@ app.post('/ytdl', [
       
     let txthtml = "";
     txthtml += '<html>';
-    txthtml += '<head>Starting download of:' + vinfo.title + '</head>';
-    txthtml += '<body>info._filename: ' + vinfo._filename;
+    txthtml += '<head>Starting download of:' + vidd.title + '</head>';
+    txthtml += '<body>info._filename: ' + vidd._filename;
     txthtml += '<br />';
     txthtml += 'Creating 720p PIP version: ';
     if (!vidd.req_pip720) {
@@ -407,8 +408,8 @@ app.post('/ytdl', [
 
     res.send(txthtml);
 
-
-    youtubedl(req.body.video_url, {
+    const subprocess = youtubedl.exec(req.body.video_url, {
+    // youtubedl(req.body.video_url, {
       noCheckCertificates: true,
       noWarnings: true,
       preferFreeFormats: true,
@@ -417,10 +418,26 @@ app.post('/ytdl', [
         'user-agent:googlebot'
       ],
       output: 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s',
+      format: 'bestvideo+bestaudio',
       windowsFilenames: true
+    })
 
-    }).then(output => {
-      console.log(output)
+    subprocess.stdout.on('data', (data) => {
+      console.log(`Received chunk ${data}`);
+    });   
+    subprocess.stdout.on('error', (data) => {
+      console.log(`ERROR: ${data}`);
+    }); 
+    subprocess.stderr.on('data', (data) => {
+      console.log(`ERROR: ${data}`);
+    });
+    subprocess.stderr.on('error', (data) => {
+      console.log(`ERROR: ${data}`);
+    });
+
+    setTimeout(subprocess.cancel, 3600000)
+    subprocess.on('exit', (code) => {
+      console.log(`yt-dlp exit code: ${code}`);
 
       console.log('\nVideo Done');
       vidd.v_status = "complete";
@@ -428,7 +445,23 @@ app.post('/ytdl', [
       vidd.m_status = "complete";
       vidd.epoch.end = Date.now();
       inMemDB.saveDatabase(); // Force a DB save
-    })
+
+      // Sort out permissions
+      fixPermissions(uploader_folder); 
+    });
+    // }).then(output => {
+    //   console.log(output)
+
+    //   console.log('\nVideo Done');
+    //   vidd.v_status = "complete";
+    //   vidd.a_status = "complete";
+    //   vidd.m_status = "complete";
+    //   vidd.epoch.end = Date.now();
+    //   inMemDB.saveDatabase(); // Force a DB save
+
+    //   // Sort out permissions
+    //   fixPermissions(uploader_folder); 
+    // })
   })
 
 
