@@ -343,7 +343,7 @@ app.post('/ytdl', [
     windowsFilenames: true
 
   }).then(vinfo => {
-    console.log('vinfo: ' + JSON.stringify(vinfo))
+    // console.log('vinfo: ' + JSON.stringify(vinfo))
 
     var uploader_folder = ""
 
