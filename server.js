@@ -301,34 +301,27 @@ app.post('/ytdl', [
   }
 
   // Data from form is valid.
-  //let dling = "dling: " + req.body.video_url;
   const ytdl_folder = "ytdl";
 
   if (!fs.existsSync(ytdl_folder)) {
     fs.mkdirSync(ytdl_folder);
   }
 
-  // Optional arguments passed to youtube-dl.
-  const options = ['-o', 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s', '--restrict-filenames', '-f', 'bestvideo+bestaudio'];
-  const voptions = ['-o', 'ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames', '-f', 'bestvideo'];
-  const aoptions = ['-o', 'ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s', '--restrict-filenames', '-f', 'bestaudio'];
-  //, '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]'];//, '-f bestvideo+bestaudio']; //'--username=user', '--password=hunter2'
-
-  let dbEntry = {};
-  dbEntry.req_url = req.body.video_url;
-  dbEntry.req_pip720 = req.body.pip720;
-  dbEntry.req_audioOnly = req.body.audioOnly;
-  dbEntry.epoch = {};
-  dbEntry.epoch.requested = Date.now();
-  dbEntry.v_pos = 0;
-  dbEntry.v_percent = 0;
-  dbEntry.v_status = "waiting";
-  dbEntry.a_size = -1;
-  dbEntry.a_pos = 0;
-  dbEntry.a_percent = 0;
-  dbEntry.a_status = "waiting";
-  dbEntry.m_status = "waiting";
-  const db_doc_id = dlsDB.insert(dbEntry).$loki;
+  const newdbEntry = {};
+  newdbEntry.req_url = req.body.video_url;
+  newdbEntry.req_pip720 = req.body.pip720;
+  newdbEntry.req_audioOnly = req.body.audioOnly;
+  newdbEntry.epoch = {};
+  newdbEntry.epoch.requested = Date.now();
+  newdbEntry.v_pos = 0;
+  newdbEntry.v_percent = 0;
+  newdbEntry.v_status = "waiting";
+  newdbEntry.a_size = -1;
+  newdbEntry.a_pos = 0;
+  newdbEntry.a_percent = 0;
+  newdbEntry.a_status = "waiting";
+  newdbEntry.m_status = "waiting";
+  const db_doc_id = dlsDB.insert(newdbEntry).$loki;
 
   // Branch off if this is audio only
   // if (vidd.req_audioOnly) {
@@ -353,7 +346,7 @@ app.post('/ytdl', [
     console.log('vinfo: ' + JSON.stringify(vinfo))
 
     var uploader_folder = ""
-  
+
     //   console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
     console.log('Got video info: ' + vinfo.title + "<br />filename: " + vinfo.requested_downloads[0]._filename);
     // Create json obj of the video meta data we want
@@ -369,16 +362,14 @@ app.post('/ytdl', [
     dbEntry.v_format_id = vinfo.format_id;
     dbEntry.v_size = vinfo.requested_downloads[0].filesize_approx;
 
-    //   vsize = vinfo.size;
-  
-      // sort out folder
-      const path_split = dbEntry._filename.split(path.sep);
-      uploader_folder = path.join(path_split[0],path_split[1]);
-      if (!fs.existsSync(uploader_folder)){
-        console.log('Creating folder: ' + uploader_folder);
-        fs.mkdirSync(uploader_folder);
-      }
-      
+    // sort out folder
+    const path_split = dbEntry._filename.split(path.sep);
+    uploader_folder = path.join(path_split[0], path_split[1]);
+    if (!fs.existsSync(uploader_folder)) {
+      console.log('Creating folder: ' + uploader_folder);
+      fs.mkdirSync(uploader_folder);
+    }
+
     let txthtml = "";
     txthtml += '<html>';
     txthtml += '<head>Starting download of:' + dbEntry.title + '</head>';
@@ -409,29 +400,38 @@ app.post('/ytdl', [
 
     // Start the actual downloads
 
-    runYTDL(true, dbEntry, (success) =>{
+    runYTDL('video', db_doc_id, (success) => {
       // Called when dl complete
-      if ( success ) {
+      if (success) {
 
+        console.log('\nStart Audio');
+        runYTDL('audio', db_doc_id, (success) => {
+          // Called when dl complete
+          if (success) {
+
+            console.log('\nStart Merge');
+            runYTDL('merge', db_doc_id, (success) => {
+              // Called when merge complete
+              if (success) {
+                // Sort out permissions
+                fixPermissions(uploader_folder);
+                console.log('all done')
+              } else {
+                // something bad happened 
+              }
+
+            })
+          } else {
+            // something bad happened 
+          }
+
+        })
       } else {
         // something bad happened 
       }
 
     })
 
-    // }).then(output => {
-    //   console.log(output)
-
-    //   console.log('\nVideo Done');
-    //   vidd.v_status = "complete";
-    //   vidd.a_status = "complete";
-    //   vidd.m_status = "complete";
-    //   vidd.epoch.end = Date.now();
-    //   inMemDB.saveDatabase(); // Force a DB save
-
-    //   // Sort out permissions
-    //   fixPermissions(uploader_folder); 
-    // })
   })
 
 
@@ -676,73 +676,111 @@ app.post('/ytdl', [
   // });  
 });
 
-function runYTDL(video, db_doc_id, finishedCallBack) {
+function runYTDL(oppo, db_doc_id, finishedCallBack) {
+  console.log(`->runYTDL oppo:${oppo}, db_doc_id:${db_doc_id}`)
   const dbEntry = dlsDB.get(db_doc_id)
 
-  options = {
+  const options = {
     // youtubedl(req.body.video_url, {
-      noCheckCertificates: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-      addHeader: [
-        'referer:youtube.com',
-        'user-agent:googlebot'
-      ],
-      output: 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s',
-      format: 'bestvideo',
-      windowsFilenames: true
-    }
+    noCheckCertificates: true,
+    noWarnings: true,
+    preferFreeFormats: true,
+    addHeader: [
+      'referer:youtube.com',
+      'user-agent:googlebot'
+    ],
+    output: 'ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s',
+    windowsFilenames: true
+  }
+  if (oppo === 'video') {
+    options.format = 'bestvideo'
+  } else if (oppo === 'audio') {
+    options.format = 'bestaudio'
+  } else { // merge
+    options.format = 'bestvideo+bestaudio'
+    options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
+  }
 
-  
   const subprocess = youtubedl.exec(dbEntry.video_url, options)
 
-    subprocess.stdout.on('data', (data) => {
-      const dataStr = `${data}`
-      const dataSplitSP = dataStr.split(' ')
-      if ( dataSplitSP[0] && dataSplitSP[0] === '\r[dashsegments]') {
-        if ( dataSplitSP[2] && dataSplitSP[2].includes('Destination:')) {
-          console.log(`data${data}`)
-        } else if ( dataSplitSP[0] && dataSplitSP[0] === '\r[download]') {
-        if ( dataSplitSP[2] && dataSplitSP[2].includes('%')) {
-          
-          var percent = parseFloat(dataSplitSP[2])
-          const vidd = dlsDB.get(db_doc_id)
-          if ( Math.floor(percent/10.0)-Math.floor(vidd.v_percent/10.0) > 0 ) console.log(' '+percent+'%')
-          vidd.v_status = "downloading"
-          vidd.v_percent = percent
-          // vidd.v_pos = vpos
-        }
-      } else {
+  subprocess.stdout.on('data', (data) => {
+    const dataStr = `${data}`
+    const dataSplitSP = dataStr.split(/\s+/)
+    if (dataSplitSP[1] && dataSplitSP[1] === '[dashsegments]') {
+      if (dataSplitSP[2] && dataSplitSP[2].includes('Destination:')) {
         console.log(`data${data}`)
       }
-    });   
-    subprocess.stdout.on('error', (data) => {
-      console.log(`ERROR: ${data}`)
-    }); 
-    subprocess.stderr.on('data', (data) => {
-      console.log(`ERROR: ${data}`)
-    });
-    subprocess.stderr.on('error', (data) => {
-      console.log(`ERROR: ${data}`)
-    });
+    } else if (dataSplitSP[1] && dataSplitSP[1] === '[download]') {
+      if (dataSplitSP[2] && dataSplitSP[2].includes('%')) {
 
-    setTimeout(subprocess.cancel, 3600000)
-    subprocess.on('exit', (code) => {
-      console.log(`yt-dlp exit code: ${code}`)
+        var percent = parseFloat(dataSplitSP[2])
+        //const dbEntry = dlsDB.get(db_doc_id)
+        if (Math.floor(percent / 10.0) - Math.floor(dbEntry.v_percent / 10.0) > 0) console.log(' ' + percent + '%')
 
+        if (oppo === 'video') {
+          dbEntry.v_status = "downloading Video"
+          dbEntry.v_percent = percent
+          // dbEntry.v_pos = vpos
+        } else if (oppo === 'audio') {
+          dbEntry.a_status = "downloading Audio"
+          dbEntry.a_percent = percent
+          // dbEntry.a_pos = vpos
+        } else { // merge
+          dbEntry.m_status = "Merging Video & Audio"
+          dbEntry.m_percent = percent
+        }
+      }
+    } else {
+      console.log(`data${data}`)
+    }
+  })
+
+
+  subprocess.stdout.on('error', (data) => {
+    console.log(`ERROR: ${data}`)
+  });
+  subprocess.stderr.on('data', (data) => {
+    console.log(`ERROR: ${data}`)
+  });
+  subprocess.stderr.on('error', (data) => {
+    console.log(`ERROR: ${data}`)
+  });
+
+  // 1 hour time-out
+  setTimeout(subprocess.cancel, 3600000)
+  subprocess.on('exit', (code) => {
+    console.log(`yt-dlp exit code: ${code}`)
+    if (code !== 0) {
+
+      if (oppo === 'video') {
+        console.log('\nVideo dl error.')
+        dbEntry.v_status = "failed"
+      } else if (oppo === 'audio') {
+        console.log('\nAudio dl error.')
+        dbEntry.a_status = "failed"
+      } else { // merge
+        console.log('\nMerge dl error.')
+        dbEntry.m_status = "failed"
+      }
+      finishedCallBack(false)
+    }
+
+    if (oppo === 'video') {
       console.log('\nVideo Done')
-      vidd.filename = vidd._filename
-      vidd.v_status = "complete"
-      vidd.a_status = "complete"
-      vidd.m_status = "complete"
-      vidd.epoch.end = Date.now()
-      inMemDB.saveDatabase() // Force a DB save
+      dbEntry.v_status = "complete"
+    } else if (oppo === 'audio') {
+      console.log('\nAudio Done')
+      dbEntry.a_status = "complete"
+    } else { // merge
+      console.log('\nMerge Done')
+      dbEntry.m_status = "complete"
+      dbEntry.epoch.end = Date.now()
+    }
+    dbEntry.filename = dbEntry._filename
+    inMemDB.saveDatabase() // Force a DB save
 
-      // Sort out permissions
-      fixPermissions(uploader_folder); 
-
-      finishedCallBack(true)
-    })
+    finishedCallBack(true)
+  })
 };
 
 function dlAudioOnly(req, res, db_doc_id) {
