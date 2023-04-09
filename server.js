@@ -463,16 +463,29 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
     windowsFilenames: true
   }
   if (oppo === 'video') {
-    options.format = 'bestvideo'
+    if (dbEntry.req_pip720) {
+      options.formatSort = 'res:720'
+      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
+    } else {
+      options.format = 'bestvideo'
+    }
   } else if (oppo === 'audio') {
     options.format = 'bestaudio'
   } else if (oppo === 'merge') {
-    options.format = 'bestvideo+bestaudio'
-    options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
+    if (dbEntry.req_pip720) {
+      options.formatSort = 'res:720'
+      options.mergeOutputormat = 'mov'
+      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
+    } else {
+      options.format = 'bestvideo+bestaudio'
+      options.mergeOutputormat = 'mp4/mkv'
+      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
+    }
   } else if (oppo === 'audio_extract') {
     options.format = 'bestaudio'
     options.extractAudio = true
-    options.audioFormat = 'best'
+    options.audioFormat = 'falc'
+    options.audioQuality = 0
     options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s-Audio.%(ext)s'
   } else {
     console.log(`Invalid Download opperation: ${oppo}`)
