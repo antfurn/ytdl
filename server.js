@@ -65,8 +65,8 @@ app.get('/ytdl', (req, res) => {
   <input type="text" name="video_url" style="width: 400px;" value=""> \
   <br /><input type="checkbox" id="cbpip720" name="pip720" value="yes"> \
   <label for="cbpip720"> Create 720p version for PIP?</label> \
-  <br /><input type="checkbox" id="cdaudioOnly" name="audioOnly" value="yes"> \
-  <label for="cdaudioOnly"> Download audio only.</label> \
+  <br /><input type="checkbox" id="cdaudioExtract" name="audioExtract" value="yes"> \
+  <label for="cdaudioExtract"> Extract audio file.</label> \
   <br /><input type="submit" value="GO"> \
   </form> \
   <br /><a href="/ytdl/status">Download status...</a> \
@@ -310,7 +310,7 @@ app.post('/ytdl', [
   const newdbEntry = {};
   newdbEntry.req_url = req.body.video_url;
   newdbEntry.req_pip720 = req.body.pip720;
-  newdbEntry.req_audioOnly = req.body.audioOnly;
+  newdbEntry.req_audioExtract = req.body.audioExtract;
   newdbEntry.epoch = {};
   newdbEntry.epoch.requested = Date.now();
   newdbEntry.v_pos = 0;
@@ -322,12 +322,6 @@ app.post('/ytdl', [
   newdbEntry.a_status = "waiting";
   newdbEntry.m_status = "waiting";
   const db_doc_id = dlsDB.insert(newdbEntry).$loki;
-
-  // Branch off if this is audio only
-  // if (vidd.req_audioOnly) {
-  //   dlAudioOnly(req, res, db_doc_id);
-  //   return;
-  // }
 
   youtubedl(req.body.video_url, {
     dumpSingleJson: true,
@@ -383,10 +377,10 @@ app.post('/ytdl', [
     }
     txthtml += '<br />';
     txthtml += 'Dowloading audio only: ';
-    if (!dbEntry.req_audioOnly) {
+    if (!dbEntry.req_audioExtract) {
       txthtml += 'No';
     } else {
-      txthtml += dbEntry.req_audioOnly;
+      txthtml += dbEntry.req_audioExtract;
     }
     txthtml += '<br />';
     txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
@@ -413,267 +407,43 @@ app.post('/ytdl', [
             runYTDL('merge', db_doc_id, (success) => {
               // Called when merge complete
               if (success) {
-                // Sort out permissions
-                fixPermissions(uploader_folder);
-                console.log('all done')
+
+                // Do we want audio extract?
+                if (dbEntry.req_audioExtract) {
+                  runYTDL('audio_extract', db_doc_id, (success) => {
+                    // Called when merge complete
+                    if (success) {
+                      // Sort out permissions
+                      fixPermissions(uploader_folder);
+                      console.log('Video and Audio extract done')
+                    } else {
+                      // something bad happened 
+                      dbEntry.a_status = "failed"
+                    }
+                  })
+                } else {
+                  // Sort out permissions
+                  fixPermissions(uploader_folder);
+                  console.log('Video DL done')
+                }
               } else {
                 // something bad happened 
+                dbEntry.m_status = "failed"
               }
 
             })
           } else {
             // something bad happened 
+            dbEntry.a_status = "failed"
           }
 
         })
       } else {
         // something bad happened 
+        dbEntry.v_status = "failed"
       }
-
     })
-
   })
-
-
-
-
-
-  // var video = youtubedl(
-  //   req.body.video_url,
-  //   // Optional arguments passed to youtube-dl.
-  //   voptions
-  // );
-
-  // var vsize = 0
-  // var uploader_folder = ""
-  // video.on('info', function (vinfo) {
-  //   'use strict'
-  //   vsize = vinfo.size;
-
-  //   // sort out folder
-  //   const path_split = vinfo._filename.split(path.sep);
-  //   uploader_folder = path.join(path_split[0],path_split[1]);
-  //   if (!fs.existsSync(uploader_folder)){
-  //     console.log('Creating folder: ' + uploader_folder);
-  //     fs.mkdirSync(uploader_folder);
-  //   }
-
-  //   console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
-  //   // Create json obj of the video meta data we want
-  //   let vidd = dlsDB.get(db_doc_id);
-  //   vidd.epoch.start = Date.now();
-  //   vidd.vid_id = vinfo.id;
-  //   vidd.title = vinfo.title;
-  //   vidd.uploader = vinfo.uploader;
-  //   vidd.thumbnail = vinfo.thumbnail;
-  //   vidd.description = vinfo.description;
-  //   vidd._filename = vinfo._filename;
-  //   vidd.filename = path_split[2];
-  //   vidd.v_format_id = vinfo.format_id;
-  //   vidd.v_size = vinfo.size;
-
-
-  //   //var file = path.join(__dirname, info._filename)
-  //   video.pipe(fs.createWriteStream(vinfo._filename));
-
-  //   let txthtml = "";
-  //   txthtml += '<html>';
-  //   txthtml += '<head>Starting download of:' + vinfo.title + '</head>';
-  //   txthtml += '<body>info._filename: ' + vinfo._filename;
-  //   txthtml += '<br />';
-  //   txthtml += 'Creating 720p PIP version: ';
-  //   if (! vidd.req_pip720 ) {
-  //     txthtml += 'No';
-  //   } else {
-  //     txthtml += vidd.req_pip720; }
-  //   txthtml += '<br />';
-  //   txthtml += 'Dowloading audio only: ';
-  //   if (! vidd.req_audioOnly ) {
-  //     txthtml += 'No';
-  //   } else {
-  //     txthtml += vidd.req_audioOnly; }
-  //   txthtml += '<br />';
-  //   txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
-  //   txthtml += '<br />';
-  //   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
-  //   txthtml += '<br />';
-  //   txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
-  //   txthtml += '</body></html>';
-
-  //   res.send(txthtml);
-  // });
-
-  // var vpos = 0
-  // video.on('data', function data (vchunk) {
-  //   'use strict'
-  //   vpos += vchunk.length;
-
-  //   // `size` should not be 0 here.
-  //   if (vsize) {
-  //     var percent = ((vpos / vsize) * 100).toFixed(2);
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     if ( Math.floor(percent/10.0)-Math.floor(vidd.v_percent/10.0) > 0 ) console.log(' '+percent+'%');
-  //     vidd.v_status = "downloading";
-  //     vidd.v_percent = percent;
-  //     vidd.v_pos = vpos;
-  //   }
-  // });
-
-  // video.on('error', (e) => {
-  //   let vidd = dlsDB.get(db_doc_id);
-  //   vidd.v_status = "error";
-  //   vidd.failed_msg = e;
-  //   vidd.m_status = "failed";
-  //   vidd.epoch.end = Date.now();
-
-  //   console.log('\nVideo Failed with error: ',e);
-  // })
-
-  // video.on('end', function end () {
-  //   'use strict'
-  //   let vidd = dlsDB.get(db_doc_id);
-  //   // Make sure it go to 100%
-  //   if (vidd.v_percent < 100.0) {
-  //     vidd.v_status = "too_short";
-  //     vidd.m_status = "failed";
-  //     vidd.epoch.end = Date.now();
-  //     vidd.failed_msg = 'Errr, video download only ' + vidd.v_percent + '%  Try it again?';
-  //     console.log('\nError: Video only download: ' + vidd.v_percent + '%');
-
-  //     fs.rename(vidd._filename, '' + vidd._filename + '.broken', function () {
-  //       if (vidd.v_percent < 1) {
-  //         console.log('Trying alternate method:');
-  //         vidd.v_status = "started";
-  //         vidd.a_status = "started";
-  //         vidd.v_percent = "direct method";
-  //         vidd.a_percent = "progess not reported";
-  //         vidd.m_status = "waiting";
-  //         //Rename part file:
-
-  //         youtubedl.exec(vidd.req_url, ['-f bestvideo+bestaudio'], { cwd: uploader_folder }, function (err, output) {
-  //           let vidd = dlsDB.get(db_doc_id);
-  //           if (err) {
-  //             vidd.v_status = "failed";
-  //             vidd.a_status = "failed";
-  //             vidd.m_status = "failed";
-  //             vidd.epoch.end = Date.now();
-  //             vidd.failed_msg = 'Errr, Direct download also failed:\n' + err + '\n\n' + output.join('\n');
-  //             //throw err
-  //           }
-  //           console.log(output.join('\n'))
-
-  //           vidd.v_status = "complete";
-  //           vidd.a_status = "complete";
-  //           vidd.m_status = "complete";
-  //           vidd.epoch.end = Date.now();
-  //           vidd.failed_msg = 'Had to use the direct download option.';            
-  //           inMemDB.saveDatabase(); // Force a DB save
-
-  //           // Sort out permissions
-  //           fixPermissions(uploader_folder); 
-  //         })
-  //       }
-  //     });
-  //     return;
-  //   }
-  //   // else
-  //   console.log('\nVideo Done');
-  //   vidd.v_status = "complete";
-
-  //   console.log('\nStart Audio');
-  //   var audio = youtubedl(
-  //     req.body.video_url,
-  //     // Optional arguments passed to youtube-dl.
-  //     aoptions
-  //   );
-
-  //   var asize = 0
-  //   audio.on('info', function (ainfo) {
-  //     'use strict'
-  //     asize = ainfo.size;
-
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     vidd.a_format_id = ainfo.format_id;
-  //     vidd.a_size = ainfo.size;
-  //     vidd.a_pos = 0;
-  //     vidd.a_percent = 0;
-  //     vidd.a_status = "starting";
-
-  //     console.log('Got audio info: ' + ainfo.title + "<br />info._filename: " + ainfo._filename);
-  //     //res.send("Starting download of: " + info.title + "<br />info._filename: " + info._filename);
-  //     //var file = path.join(__dirname, info._filename)
-  //     audio.pipe(fs.createWriteStream(ainfo._filename));
-  //   });
-
-  //   audio.on('error', (e) => {
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     vidd.a_status = "error";
-  //     vidd.failed_msg = e;
-  //     vidd.m_status = "failed";
-  //     vidd.epoch.end = Date.now();
-
-  //     console.log('\nAudio Failed with error: ',e);
-  //   })
-
-  //   var apos = 0
-  //   audio.on('data', function data (achunk) {
-  //     'use strict'
-  //     apos += achunk.length;
-
-  //     // `size` should not be 0 here.
-  //     if (asize) {
-  //       var percent = ((apos / asize) * 100).toFixed(2);
-  //       let vidd = dlsDB.get(db_doc_id);
-  //       if ( Math.floor(percent/10.0)-Math.floor(vidd.a_percent/10.0) > 0 ) console.log(' '+percent+'%');
-  //       vidd.a_status = "downloading";
-  //       vidd.a_percent = percent;
-  //       vidd.a_pos = apos;
-  //     }
-  //   });
-
-  //   audio.on('end', function end () {
-  //     'use strict'
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     // Make sure it go to 100%
-  //     if (vidd.a_percent < 100.0) {
-  //       vidd.a_status = "too_short";
-  //       vidd.m_status = "failed";
-  //       vidd.epoch.end = Date.now();
-  //       vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
-  //       console.log('\Audio only download: ' + vidd.a_percent + '%');
-  //       return;
-  //     }
-  //     // else
-  //     console.log('\nAudio Done');
-  //     vidd.a_status = "complete";
-  //     vidd.m_status = "started";
-
-  //     console.log('\nStart merge');
-  //     youtubedl.exec(req.body.video_url, options, {}, function(err, output) {
-  //       if (err) {
-  //         console.log(output.join('\n') + "\n Merged Failed !!!");
-  //         let vidd = dlsDB.get(db_doc_id);
-  //         vidd.m_status = "failed";
-  //         vidd.epoch.end = Date.now();
-  //         vidd.failed_msg = err;
-  //         inMemDB.saveDatabase(); // Force a DB save
-
-  //         throw err
-  //       } else {
-  //         //res.send("Finished download ");
-  //         console.log(output.join('\n') + "\n Download Complete!");
-  //         let vidd = dlsDB.get(db_doc_id);
-  //         vidd.m_status = "complete";
-  //         vidd.epoch.end = Date.now();
-  //         inMemDB.saveDatabase(); // Force a DB save
-
-  //         // Sort out permissions
-  //         fixPermissions(uploader_folder); 
-  //       }
-  //     });
-
-  //   });
-  // });  
 });
 
 function runYTDL(oppo, db_doc_id, finishedCallBack) {
@@ -696,9 +466,18 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
     options.format = 'bestvideo'
   } else if (oppo === 'audio') {
     options.format = 'bestaudio'
-  } else { // merge
+  } else if (oppo === 'merge') {
     options.format = 'bestvideo+bestaudio'
     options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
+  } else if (oppo === 'audio_extract') {
+    options.format = 'bestaudio'
+    options.extractAudio = true
+    options.audioFormat = 'best'
+    options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s-Audio.%(ext)s'
+  } else {
+    console.log(`Invalid Download opperation: ${oppo}`)
+    finishedCallBack(false)
+    return
   }
 
   const subprocess = youtubedl.exec(dbEntry.video_url, options)
@@ -783,212 +562,6 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
   })
 };
 
-function dlAudioOnly(req, res, db_doc_id) {
-  let vidd = dlsDB.get(db_doc_id);
-  vidd.v_status = "n/a";
-  /*
-  Audio formats
-  id	quality	codec	examples
-  258	386k	m4a	youtube-dl -F NMANRHz4UAY
-  256	195k	m4a	youtube-dl -F NMANRHz4UAY
-  251	160k	Opus	youtube-dl -F S8Zt6cB_NPU
-  140	128k	m4a	youtube-dl -F S8Zt6cB_NPU
-  250	70k	Opus	youtube-dl -F S8Zt6cB_NPU
-  249	50k	Opus	youtube-dl -F S8Zt6cB_NPU
-  */
-  //const aoptions = ['-o','ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames','-F','S8Zt6cB_NPU'];
-
-  const options = ['-o', 'ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--extract-audio', '--audio-format', 'mp3'];
-  const aoptions = ['-o', 'ytdl/%(uploader)s/%(title)s.%(ext)s', '--restrict-filenames', '--dump-json', '--audio-format', 'mp3'];
-
-  console.log('\nStart Audio Only');
-
-  // let txthtml = "";
-  // txthtml += '<html>';
-  // txthtml += '<head>Starting Audio only download of:' + ainfo.title + '</head>';
-  // txthtml += '<body>info._filename: ' + ainfo._filename;
-  // txthtml += '<br />';
-  // txthtml += '<br />';
-  // txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
-  // txthtml += '<br />';
-  // txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
-  // txthtml += '<br />';
-  // txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
-  // txthtml += '</body></html>';
-
-  // res.send(txthtml);
-  // youtubedl.exec(req.body.video_url, aoptions, {}, function(err, output) {
-  //   if (err) {
-  //     console.log(output.join('\n') + "\n Download Failed !!!");
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     vidd.m_status = "failed";
-  //     vidd.epoch.end = Date.now();
-  //     vidd.failed_msg = err;
-  //     inMemDB.saveDatabase(); // Force a DB save
-
-  //     throw err
-  //   } else {
-  //     //res.send("Finished download ");
-  //     console.log(output.join('\n') + "\n Audio Complete!");
-  //     let vidd = dlsDB.get(db_doc_id);
-  //     vidd.a_status = "complete";
-  //     vidd.m_status = "complete";
-  //     vidd.epoch.end = Date.now();
-  //     inMemDB.saveDatabase(); // Force a DB save
-
-  //     // Sort out permissions
-  //     fixPermissions(uploader_folder); 
-  //   }
-
-
-  var audio = youtubedl(
-    req.body.video_url,
-    // Optional arguments passed to youtube-dl.
-    aoptions
-  );
-
-  var asize = 0
-  var uploader_folder = ""
-  audio.on('info', function (ainfo) {
-    'use strict'
-    asize = ainfo.size;
-
-    // sort out folder
-    const path_split = ainfo._filename.split(path.sep);
-    uploader_folder = path.join(path_split[0], path_split[1]);
-    if (!fs.existsSync(uploader_folder)) {
-      console.log('Creating folder: ' + uploader_folder);
-      fs.mkdirSync(uploader_folder);
-    }
-
-    // Create json obj of the video meta data we want
-    let vidd = dlsDB.get(db_doc_id);
-    vidd.epoch.start = Date.now();
-    vidd.vid_id = ainfo.id;
-    vidd.title = ainfo.title;
-    vidd.uploader = ainfo.uploader;
-    vidd.thumbnail = ainfo.thumbnail;
-    vidd.description = ainfo.description;
-    vidd._filename = ainfo._filename;
-    vidd.filename = path_split[2];
-    vidd.v_format_id = "";
-    vidd.v_size = -1;
-
-    vidd.a_format_id = ainfo.format_id;
-    vidd.a_size = ainfo.size;
-    vidd.a_pos = 0;
-    vidd.a_percent = 0;
-    vidd.a_status = "starting";
-
-    console.log('Got audio info: ' + ainfo.title + "<br />info._filename: " + ainfo._filename);
-
-
-    let txthtml = "";
-    txthtml += '<html>';
-    txthtml += '<head>Starting Audio only download of:' + ainfo.title + '</head>';
-    txthtml += '<body>info._filename: ' + ainfo._filename;
-    txthtml += '<br />';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
-    txthtml += '</body></html>';
-
-    res.send(txthtml);
-
-    //var file = path.join(__dirname, info._filename)
-    audio.pipe(fs.createWriteStream(ainfo._filename));
-  });
-
-  audio.on('error', (e) => {
-    let vidd = dlsDB.get(db_doc_id);
-    vidd.a_status = "error";
-    vidd.failed_msg = e;
-    vidd.m_status = "failed";
-    vidd.epoch.end = Date.now();
-
-    console.log('\nAudio Failed with error: ', e);
-
-    let txthtml = "";
-    txthtml += '<html>';
-    txthtml += '<head>FAILED: Audio only download of:' + req.body.video_url + '</head>';
-    txthtml += '<body>Error: ' + e;
-    txthtml += '<br />';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl">Back to submit form...</a>';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
-    txthtml += '<br />';
-    txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
-    txthtml += '</body></html>';
-    res.send(txthtml);
-  })
-
-  var apos = 0
-  audio.on('data', function data(achunk) {
-    'use strict'
-    apos += achunk.length;
-
-    // `size` should not be 0 here.
-    if (asize) {
-      var percent = ((apos / asize) * 100).toFixed(2);
-      let vidd = dlsDB.get(db_doc_id);
-      if (Math.floor(percent / 10.0) - Math.floor(vidd.a_percent / 10.0) > 0) console.log(' ' + percent + '%');
-      vidd.a_status = "downloading";
-      vidd.a_percent = percent;
-      vidd.a_pos = apos;
-    }
-  });
-
-  audio.on('end', function end() {
-    'use strict'
-    let vidd = dlsDB.get(db_doc_id);
-    // Make sure it go to 100%
-    if (vidd.a_percent < 100.0) {
-      vidd.a_status = "too_short";
-      vidd.m_status = "failed";
-      vidd.epoch.end = Date.now();
-      vidd.failed_msg = 'Errr, audio download only ' + vidd.a_percent + '%  Try it again?';
-      console.log('\Audio only download: ' + vidd.a_percent + '%');
-      return;
-    }
-    // else
-    vidd.a_status = "complete";
-    vidd.m_status = "started";
-
-    console.log('\nAudio dl Done');
-    youtubedl.exec(req.body.video_url, options, {}, function (err, output) {
-      if (err) {
-        console.log(output.join('\n') + "\n Audio Exctract Failed !!!");
-        let vidd = dlsDB.get(db_doc_id);
-        vidd.m_status = "failed";
-        vidd.epoch.end = Date.now();
-        vidd.failed_msg = err;
-        inMemDB.saveDatabase(); // Force a DB save
-
-        throw err
-      } else {
-        console.log('\nAudio extract Done');
-        vidd.m_status = "complete";
-
-        // Correct filename to the mp3 one
-        vidd._filename = vidd._filename.slice(0, -3) + "mp3";
-        vidd.filename = vidd.filename.slice(0, -3) + "mp3";
-
-
-        console.log("Download Complete!");
-        vidd.epoch.end = Date.now();
-        inMemDB.saveDatabase(); // Force a DB save
-
-        // Sort out permissions
-        fixPermissions(uploader_folder);
-      }
-    });
-  });
-
-}
 
 function fixPermissions(uploader_folder) {
   var chmodr = require('chmodr');
