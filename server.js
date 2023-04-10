@@ -5,8 +5,10 @@ const { body, validationResult } = require('express-validator');
 const stringifyObject = require('stringify-object');
 const path = require('path', 'sep')
 const fs = require('fs');
+const chmodr = require('chmodr');
+const chownr = require('chownr');
 const youtubedl = require('youtube-dl-exec');
-const exec = require('child_process');
+const { spawn } = require('child_process');
 
 // Create a local in memory database (loki)
 var loki = require('lokijs');
@@ -262,27 +264,37 @@ app.post('/ytdl/remove', [
 });
 
 app.post('/ytdl/update', (req, res) => {
-  // const downloader = require('youtube-dl/lib/downloader');
 
-  // let ytdl_apath = youtubedl.getYtdlBinary();
-  // console.log( "youtube-dl apath: " + ytdl_apath );
-  // let ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("/"));
-  // if ( ytdl_path.length < 1) { 
-  //   ytdl_path = ytdl_apath.substring(0, ytdl_apath.lastIndexOf("\\"));
-  // }
-  // console.log( "youtube-dl  path: " + ytdl_path );
+  const subprocess = youtubedl.exec('', { update: true })
+  var processOutput = ""
 
+  subprocess.stdout.on('data', (data) => {
+    console.log(`yt-dlp update data: ${data}`)
+    processOutput += `${data}`
+  })
+  subprocess.stderr.on('data', (data) => {
+    console.log(`Error: yt-dlp data: ${data}`)
+    processOutput += `${data}`
+  })
+  subprocess.on('error', (data) => {
+    console.log(`Error: yt-dlp exit code: ${data}`)
+    res.send(`Sorry - yt-dlp update failed!<br />Reason: ${processOutput}<br /><a href="/ytdl">Back to form...</a>`);
+  })
 
-  // //downloader(youtubedl.getYtdlBinary(), function error(err, done) {
-  // downloader(ytdl_path, function error(err, done) {
-  //   'use strict'
-  //   if (err) throw err
+  subprocess.on('exit', (code) => {
+    console.log(`yt-dlp update complete [exit code: ${code}]`)
+  });
 
-  //   console.log(done)
-  //   res.send('Updated to: ' + done + '<br /><a href="/ytdl">Back to form...</a>' );
-  // })
-  res.send('Sorry not implemeted!<br /><a href="/ytdl">Back to form...</a>');
-});
+  subprocess.on('close', (code) => {
+    console.log(`yt-dlp update complete [close code: ${code}]`)
+    if (code !== 0) {
+      res.send(`Sorry - yt-dlp update failed!<br />Reason: ${processOutput}<br /><a href="/ytdl">Back to form...</a>`);
+    } else {
+      res.send(`yt-dlp Update complete!<br />${processOutput}<br /><a href="/ytdl">Back to form...</a>`);
+    }
+  });
+})
+
 
 app.post('/ytdl', [
   body('video_url').isURL()
@@ -426,6 +438,11 @@ app.post('/ytdl', [
                   fixPermissions(uploader_folder);
                   console.log('Video DL done')
                 }
+
+                if (dbEntry.req_pip720) {
+                  console.log('Creating 720p video file')
+                  convertOutput(dbEntry)
+                }
               } else {
                 // something bad happened 
                 dbEntry.m_status = "failed"
@@ -463,29 +480,29 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
     windowsFilenames: true
   }
   if (oppo === 'video') {
-    if (dbEntry.req_pip720) {
-      options.formatSort = 'res:720'
-      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
-    } else {
-      options.format = 'bestvideo'
-    }
+    // if (dbEntry.req_pip720) {
+    //   options.formatSort = 'res:720'
+    //   options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
+    // } else {
+    options.format = 'bestvideo'
+    // }
   } else if (oppo === 'audio') {
     options.format = 'bestaudio'
   } else if (oppo === 'merge') {
-    if (dbEntry.req_pip720) {
-      options.formatSort = 'res:720'
-      options.mergeOutputFormat = 'mov'
-      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
-    } else {
-      options.format = 'bestvideo+bestaudio'
-      options.mergeOutputormat = 'mp4/mkv'
-      options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
-    }
+    // if (dbEntry.req_pip720) {
+    //   options.formatSort = 'res:720'
+    //   options.mergeOutputFormat = 'mov'
+    //   options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.720p.%(ext)s'
+    // } else {
+    options.format = 'bestvideo+bestaudio'
+    options.mergeOutputFormat = 'mp4/mkv'
+    options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s'
+    // }
   } else if (oppo === 'audio_extract') {
     options.format = 'bestaudio'
     options.extractAudio = true
-    options.audioFormat = 'flac'
-    options.audioQuality = 0
+    options.audioFormat = 'mp3'
+    options.audioQuality = 1
     options.output = 'ytdl/%(uploader)s/%(title)s-%(id)s-Audio.%(ext)s'
   } else {
     console.log(`Invalid Download opperation: ${oppo}`)
@@ -517,7 +534,7 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
           dbEntry.a_status = "downloading Audio"
           dbEntry.a_percent = percent
           // dbEntry.a_pos = vpos
-        } else { // merge
+        } else if (oppo === 'merge') {
           dbEntry.m_status = "Merging Video & Audio"
           dbEntry.m_percent = percent
         }
@@ -540,6 +557,10 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
 
   // 1 hour time-out
   setTimeout(subprocess.cancel, 3600000)
+  subprocess.on('error', (code) => {
+    console.log(`Error: yt-dlp exit code: ${code}`)
+  })
+
   subprocess.on('exit', (code) => {
     console.log(`yt-dlp exit code: ${code}`)
     if (code !== 0) {
@@ -550,8 +571,11 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
       } else if (oppo === 'audio') {
         console.log('\nAudio dl error.')
         dbEntry.a_status = "failed"
-      } else { // merge
-        console.log('\nMerge dl error.')
+        console.log('\nAudio Extract error.')
+      } else if (oppo === 'audio_extract') {
+        dbEntry.a_extract_status = "failed"
+      } else if (oppo === 'merge') {
+        console.log('\nMerge error.')
         dbEntry.m_status = "failed"
       }
       finishedCallBack(false)
@@ -563,7 +587,10 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
     } else if (oppo === 'audio') {
       console.log('\nAudio Done')
       dbEntry.a_status = "complete"
-    } else { // merge
+    } else if (oppo === 'audio_extract') {
+      console.log('\nAudio Extract Done')
+      dbEntry.a_extract_status = "complete"
+    } else if (oppo === 'merge') {
       console.log('\nMerge Done')
       dbEntry.m_status = "complete"
       dbEntry.epoch.end = Date.now()
@@ -577,8 +604,6 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
 
 
 function fixPermissions(uploader_folder) {
-  var chmodr = require('chmodr');
-  var chownr = require('chownr');
   console.log('chmod-ing folder: ' + uploader_folder);
   chmodr(uploader_folder, 0o775, function (err) {
     if (err) { throw err; }
@@ -594,13 +619,21 @@ function fixPermissions(uploader_folder) {
 function convertOutput(dbEntry) {
   console.log("convertOutput::");
 
-  inMemDB.saveDatabase(); // Force a DB save
+  // inMemDB.saveDatabase(); // Force a DB save
+  // ffpmeg_cm = "ffmpeg -i" + dbEntry._filename + "-c:v libx265 -preset medium -crf 28 -vf scale=-1:720 -vtag hvc1 -c:a aac -b:a 128k" + dbEntry._filename + ".720p.mov";
+  const ffmpeg = spawn('ffmpeg', [dbEntry._filename, '-c:v libx265', '-preset medium', '-crf 28', '-vf scale=-1:720', '-vtag hvc1', '-c:a aac', '-b:a 128k', `${dbEntry._filename}.720p.mov`]);
 
-  ffpmeg_cm = "ffmpeg -i" + dbEntry._filename + "-c:v libx265 -preset medium -crf 28 -vf scale=-1:720 -vtag hvc1 -c:a aac -b:a 128k" + dbEntry._filename + ".720p.mov";
-
-  exec("", (error, stdout, stderr) => {
-
+  ffmpeg.stdout.on('data', (data) => {
+    console.log(`stdout: ${data}`);
   });
+
+  ffmpeg.stderr.on('data', (data) => {
+    console.log(`Error: ${data}`);
+  })
+
+  ffmpeg.on('exit', (data) => {
+    console.log(`ffmpeg - convert to 720p complete: ${data}`);
+  })
 }
 
 
