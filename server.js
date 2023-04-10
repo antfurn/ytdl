@@ -481,7 +481,8 @@ function runYTDL(oppo, db_doc_id, finishedCallBack) {
       'user-agent:googlebot'
     ],
     output: 'ytdl/%(uploader)s/%(title)s-%(id)s.f%(format_id)s.%(ext)s',
-    windowsFilenames: true
+    // windowsFilenames: true
+    restrictFilenames: true
   }
   if (oppo === 'video') {
     // if (dbEntry.req_pip720) {
