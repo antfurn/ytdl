@@ -345,7 +345,7 @@ app.post('/ytdl', [
       'user-agent:googlebot'
     ],
     output: 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s',
-    format: 'bestvideo',
+    format: 'bestvideo+bestaudio',
     windowsFilenames: true
 
   }).then(vinfo => {
@@ -356,17 +356,20 @@ app.post('/ytdl', [
     //   console.log('Got video info: ' + vinfo.title + "<br />info._filename: " + vinfo._filename);
     console.log('Got video info: ' + vinfo.title + "<br />filename: " + vinfo.requested_downloads[0]._filename);
     // Create json obj of the video meta data we want
-    const dbEntry = dlsDB.get(db_doc_id);
+    const dbEntry = dlsDB.get(db_doc_id)
     dbEntry.video_url = req.body.video_url
-    dbEntry.epoch.start = Date.now();
-    dbEntry.vid_id = vinfo.id;
-    dbEntry.title = vinfo.title;
-    dbEntry.uploader = vinfo.uploader;
-    dbEntry.thumbnail = vinfo.thumbnail;
-    dbEntry.description = vinfo.description;
-    dbEntry._filename = vinfo.requested_downloads[0]._filename;
-    dbEntry.v_format_id = vinfo.format_id;
-    dbEntry.v_size = vinfo.requested_downloads[0].filesize_approx;
+    dbEntry.epoch.start = Date.now()
+    dbEntry.vid_id = vinfo.id
+    dbEntry.title = vinfo.title
+    dbEntry.uploader = vinfo.uploader
+    dbEntry.thumbnail = vinfo.thumbnail
+    dbEntry.description = vinfo.description
+    dbEntry._filename = vinfo.requested_downloads[0]._filename
+    dbEntry.v_format_id = vinfo.requested_formats[0].format_id
+    dbEntry.v_size = vinfo.requested_formats[0].filesize
+    dbEntry.a_format_id = vinfo.requested_formats[1].format_id
+    dbEntry.a_size = vinfo.requested_formats[1].filesize
+    dbEntry.requested_formats = vinfo.requested_formats
 
     // sort out folder
     const path_split = dbEntry._filename.split(path.sep);
@@ -621,7 +624,7 @@ function convertOutput(dbEntry) {
 
   // inMemDB.saveDatabase(); // Force a DB save
   // ffpmeg_cm = "ffmpeg -i" + dbEntry._filename + "-c:v libx265 -preset medium -crf 28 -vf scale=-1:720 -vtag hvc1 -c:a aac -b:a 128k" + dbEntry._filename + ".720p.mov";
-  const ffmpeg = spawn('ffmpeg', [dbEntry._filename, '-c:v libx265', '-preset medium', '-crf 28', '-vf scale=-1:720', '-vtag hvc1', '-c:a aac', '-b:a 128k', `${dbEntry._filename}.720p.mov`]);
+  const ffmpeg = spawn('ffmpeg', [dbEntry._filename, '-c:v libx265', '-preset medium', '-vf scale=-1:720', '-vtag hvc1', '-c:a aac', '-b:a 128k', `${dbEntry._filename}.720p.mov`]);
 
   ffmpeg.stdout.on('data', (data) => {
     console.log(`stdout: ${data}`);
@@ -632,6 +635,10 @@ function convertOutput(dbEntry) {
   })
 
   ffmpeg.on('exit', (data) => {
+    console.log(`ffmpeg - exit code: ${data}`);
+  })
+
+  ffmpeg.on('close', (data) => {
     console.log(`ffmpeg - convert to 720p complete: ${data}`);
   })
 }
