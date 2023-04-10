@@ -346,7 +346,8 @@ app.post('/ytdl', [
     ],
     output: 'ytdl/%(uploader)s/%(title)s-%(id)s.%(ext)s',
     format: 'bestvideo+bestaudio',
-    windowsFilenames: true
+    // windowsFilenames: true
+    restrictFilenames: true
 
   }).then(vinfo => {
     // console.log('vinfo: ' + JSON.stringify(vinfo))
