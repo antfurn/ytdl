@@ -69,6 +69,9 @@ app.get('/ytdl', (req, res) => {
   <label for="cbpip720"> Create 720p version for PIP?</label> \
   <br /><input type="checkbox" id="cdaudioExtract" name="audioExtract" value="yes"> \
   <label for="cdaudioExtract"> Extract audio file.</label> \
+  <br /> \
+  <br /> \
+  <br /> \
   <br /><input type="submit" value="GO"> \
   </form> \
   <br /><a href="/ytdl/status">Download status...</a> \
