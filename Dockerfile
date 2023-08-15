@@ -7,6 +7,7 @@ WORKDIR /usr/src/app
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
 COPY package*.json ./
+COPY matterport ./
 
 RUN apt-get update && apt-get -y install python3.10 ffmpeg
 RUN npm install
@@ -17,5 +18,7 @@ RUN npm install
 COPY . .
 
 EXPOSE 9980
+EXPOSE 8080
+
 
 CMD [ "node", "server.js" ]

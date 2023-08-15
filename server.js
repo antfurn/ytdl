@@ -55,6 +55,8 @@ app.get('/', (req, res) => {
   txthtml += '<br /><a href="/ytdl/status">Download status...</a>';
   txthtml += '<br />';
   txthtml += '<br /><a href="/ytdl/history">Download history...</a>';
+  txthtml += '<br />';
+  txthtml += '<br /><a href="/ytdl/matterport">MatterPort form...</a>';
   txthtml += '</body></html>';
 
   res.send(txthtml);
@@ -82,6 +84,21 @@ app.get('/ytdl', (req, res) => {
   <form action="/ytdl/update" method="post"> \
   <label>Update youtube-dl:  </label><input type="submit" value="Update!"> \
   </form>');
+});
+
+app.get('/matterport', (req, res) => {
+  res.send(' \
+  <form action="/matterport/" method="post"> \
+  <label>Enter MatterPort ID to download:  </label><br /> \
+  <input type="text" name="video_url" style="width: 400px;" value=""> \
+  <br /><input type="checkbox" id="cdmatterport" name="matterport" value="yes"> \
+  <label for="cdmatterport"> MatterPort ID.</label> \
+  <br /> \
+  <br /> \
+  <br /> \
+  <br /><input type="submit" value="GO"> \
+  </form> \
+  <br /><a href="/matterport/history">MatterPort history...</a>')
 });
 
 app.get('/ytdl/status', (req, res) => {

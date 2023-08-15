@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker run -p 9980:9980 -d -v /srv/mergerfs/FastPool/Media/Downloads/ytdl:/usr/src/app/ytdl -v /etc/localtime:/etc/localtime:ro --name ytdlpage2 antfurn/ytdl-page-app2
+docker run -p 9980:9980 -p 9981:8080 -d -v /srv/mergerfs/FastPool/Media/Downloads/ytdl:/usr/src/app/ytdl -v /etc/localtime:/etc/localtime:ro --name ytdlpage2 antfurn/ytdl-page-app2
